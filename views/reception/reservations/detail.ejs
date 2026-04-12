@@ -1,0 +1,179 @@
+<div class="container" style="max-width: 900px; margin: 0 auto; padding: 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div>
+      <h1 style="margin: 0 0 4px; color: #1a3c34;">Chi Tiet Dat Ban</h1>
+      <% if (reservation.bookingType === 'walkin_assist') { %>
+        <span style="display: inline-block; padding: 4px 12px; background: #e8f5e9; color: #2e7d32; border-radius: 12px; font-size: 0.82rem; font-weight: 700; border: 1px solid #a5d6a7;">
+          Dat Ho Khach (Tiep Tan)
+        </span>
+      <% } else { %>
+        <span style="display: inline-block; padding: 4px 12px; background: #e3f2fd; color: #1565c0; border-radius: 12px; font-size: 0.82rem; font-weight: 700; border: 1px solid #90caf9;">
+          Dat Truc Tuyen
+        </span>
+      <% } %>
+    </div>
+    <a href="/reception/reservations" style="color: #00897b; text-decoration: none; font-weight: 600; font-size: 0.9rem;">← Quay lai</a>
+  </div>
+
+  <% if (success === 'guest_created') { %>
+    <div style="padding: 12px 18px; margin-bottom: 20px; background: #e8f5e9; color: #1b5e20; border-radius: 8px; border-left: 4px solid #2e7d32; font-size: 0.9rem;">
+      Da tao don dat ban ho khach thanh cong!
+    </div>
+  <% } else if (success === 'payment_confirmed') { %>
+    <div style="padding: 12px 18px; margin-bottom: 20px; background: #e8f5e9; color: #1b5e20; border-radius: 8px; border-left: 4px solid #2e7d32; font-size: 0.9rem;">
+      Da xac nhan thanh toan thanh cong!
+    </div>
+  <% } else if (success === 'confirmed') { %>
+    <div style="padding: 12px 18px; margin-bottom: 20px; background: #e8f5e9; color: #1b5e20; border-radius: 8px; border-left: 4px solid #2e7d32; font-size: 0.9rem;">
+      Da xac nhan dat ban thanh cong!
+    </div>
+  <% } %>
+
+  <div style="background: white; border: 1px solid #e0f2f1; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 8px rgba(0,105,92,0.07);">
+    <!-- Customer Info -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e0f2f1;">
+      <div>
+        <h3 style="margin: 0 0 14px; color: #1a3c34; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">Thong Tin Khach Hang</h3>
+        <% if (reservation.bookingType === 'walkin_assist') { %>
+          <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Ho Ten:</strong> <%= reservation.guestName || '-' %></p>
+          <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Dien Thoai:</strong> <%= reservation.guestPhone || '-' %></p>
+          <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Email:</strong> <%= reservation.guestEmail || '-' %></p>
+          <p style="margin: 8px 0; font-size: 0.9rem; color: #607d8b;"><strong>Dat Boi:</strong> Tiep tan (khach vang lai)</p>
+        <% } else { %>
+          <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Khach Hang:</strong> <%= reservation.userId?.name || '-' %></p>
+          <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Dien Thoai:</strong> <%= reservation.userId?.phone || '-' %></p>
+          <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Email:</strong> <%= reservation.userId?.email || '-' %></p>
+        <% } %>
+        <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Chi Nhanh:</strong> <%= reservation.branchId?.name || '-' %></p>
+      </div>
+      <div>
+        <h3 style="margin: 0 0 14px; color: #1a3c34; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">Thong Tin Dat Cho</h3>
+        <% const resDate = new Date(reservation.date); %>
+        <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Ngay:</strong> <%= resDate.getDate() %>/<%= resDate.getMonth() + 1 %>/<%= resDate.getFullYear() %></p>
+        <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Gio:</strong> <%= reservation.time || '-' %></p>
+        <p style="margin: 8px 0; font-size: 0.9rem;"><strong>So Khach:</strong> <%= reservation.guests %></p>
+        <p style="margin: 8px 0; font-size: 0.9rem;"><strong>Ghi Chu:</strong> <%= reservation.specialRequests || '-' %></p>
+      </div>
+    </div>
+
+    <!-- Order Items -->
+    <% if (reservation.orderItems && reservation.orderItems.length > 0) { %>
+    <div style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e0f2f1;">
+      <h3 style="margin: 0 0 14px; color: #1a3c34; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">Mon An Dat Truoc</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
+        <thead>
+          <tr style="background: #f0faf8;">
+            <th style="padding: 10px 12px; text-align: left; border-bottom: 2px solid #b2dfdb; color: #00695c;">Mon An</th>
+            <th style="padding: 10px 12px; text-align: center; border-bottom: 2px solid #b2dfdb; color: #00695c;">SL</th>
+            <th style="padding: 10px 12px; text-align: right; border-bottom: 2px solid #b2dfdb; color: #00695c;">Don Gia</th>
+            <th style="padding: 10px 12px; text-align: right; border-bottom: 2px solid #b2dfdb; color: #00695c;">Thanh Tien</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% reservation.orderItems.forEach(item => { %>
+          <tr style="border-bottom: 1px solid #e0f2f1;">
+            <td style="padding: 10px 12px;"><%= item.dishId?.name || item.name || '-' %></td>
+            <td style="padding: 10px 12px; text-align: center;"><%= item.quantity %></td>
+            <td style="padding: 10px 12px; text-align: right;"><%= (item.price || 0).toLocaleString('vi-VN') %>d</td>
+            <td style="padding: 10px 12px; text-align: right; font-weight: 600; color: #00695c;"><%= ((item.price || 0) * (item.quantity || 0)).toLocaleString('vi-VN') %>d</td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+
+    <!-- Invoice Summary -->
+    <div style="background: linear-gradient(135deg, #f0faf8 0%, #e0f2f1 100%); border: 2px solid #00897b; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
+      <h3 style="margin: 0 0 16px; color: #1a3c34; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid #b2dfdb; padding-bottom: 10px;">Hoa Don Chi Tiet</h3>
+      <table style="width: 100%; font-size: 0.9rem;">
+        <tr>
+          <td style="padding: 7px 0; color: #555;">Phi Dat Coc Ban:</td>
+          <td style="padding: 7px 0; text-align: right; font-weight: 600; color: #00695c;"><%= (reservation.depositAmount || 100000).toLocaleString('vi-VN') %>d</td>
+        </tr>
+        <% if (reservation.orderItems && reservation.orderItems.length > 0) { %>
+        <tr>
+          <td style="padding: 7px 0; color: #555;">Tong Mon An:</td>
+          <td style="padding: 7px 0; text-align: right; font-weight: 600;"><%= (reservation.foodTotal || 0).toLocaleString('vi-VN') %>d</td>
+        </tr>
+        <% if ((reservation.foodDiscount || 0) > 0) { %>
+        <tr>
+          <td style="padding: 7px 0; color: #27ae60;">Giam Gia Mon An:</td>
+          <td style="padding: 7px 0; text-align: right; font-weight: 600; color: #27ae60;">-<%= (reservation.foodDiscount || 0).toLocaleString('vi-VN') %>d</td>
+        </tr>
+        <% } %>
+        <% } %>
+        <tr style="border-top: 2px solid #00897b;">
+          <td style="padding: 14px 0 6px; font-size: 1.05rem; font-weight: 700; color: #1a3c34;">Tong Thanh Toan:</td>
+          <td style="padding: 14px 0 6px; text-align: right; font-size: 1.2rem; font-weight: 800; color: #00695c;"><%= (reservation.totalAmount || 0).toLocaleString('vi-VN') %>d</td>
+        </tr>
+      </table>
+
+      <!-- Payment Status -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding: 12px; background: white; border-radius: 8px;">
+        <div>
+          <strong style="font-size: 0.9rem;">Trang Thai Thanh Toan:</strong>
+          <span style="margin-left: 8px; padding: 4px 12px; border-radius: 10px; font-weight: 700; font-size: 0.82rem;
+            <%= reservation.paymentStatus === 'paid' ? 'background:#e8f5e9;color:#1b5e20;' : 'background:#fff3cd;color:#856404;' %>">
+            <%= reservation.paymentStatus === 'paid' ? 'DA THANH TOAN' : 'CHUA THANH TOAN' %>
+          </span>
+        </div>
+        <% if (reservation.paidAt) { %>
+          <span style="font-size: 0.82rem; color: #666;">
+            <%= new Date(reservation.paidAt).toLocaleString('vi-VN') %>
+          </span>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Status & Actions -->
+    <div>
+      <h3 style="margin: 0 0 12px; color: #1a3c34; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">Trang Thai & Hanh Dong</h3>
+      <p style="margin: 8px 0; font-size: 0.9rem;">
+        <strong>Trang Thai Hien Tai:</strong>
+        <span style="padding: 4px 10px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; margin-left: 6px;
+          <%= reservation.status === 'pending' ? 'background:#fff3cd;color:#856404;' :
+             reservation.status === 'confirmed' || reservation.status === 'paid' || reservation.status === 'processing' ? 'background:#e3f2fd;color:#1565c0;' :
+             reservation.status === 'completed' ? 'background:#e8f5e9;color:#1b5e20;' :
+             'background:#ffebee;color:#c62828;' %>">
+          <%= reservation.status === 'pending' ? 'Cho Xac Nhan' :
+              reservation.status === 'confirmed' ? 'Da Xac Nhan' :
+              reservation.status === 'paid' ? 'Da Thanh Toan' :
+              reservation.status === 'processing' ? 'Dang Xu Ly' :
+              reservation.status === 'completed' ? 'Hoan Thanh' : 'Da Huy' %>
+        </span>
+      </p>
+
+      <!-- Action for walkin_assist: confirm payment -->
+      <% if (reservation.bookingType === 'walkin_assist' && reservation.paymentStatus !== 'paid') { %>
+        <div style="margin-top: 18px; padding: 16px; background: #f0faf8; border-radius: 8px; border: 1.5px solid #b2dfdb;">
+          <p style="margin: 0 0 12px; font-size: 0.88rem; color: #1a3c34; font-weight: 600;">
+            Xac nhan khach da thanh toan toan bo hoa don tren quay:
+          </p>
+          <form method="POST" action="/reception/reservations/<%= reservation._id %>/confirm-guest-payment" 
+                onsubmit="return confirm('Ban chac chan khach da thanh toan ' + '<%= (reservation.totalAmount || 0).toLocaleString(\'vi-VN\') %>d ?');">
+            <input type="hidden" name="confirmCode" value="PAID">
+            <button type="submit" 
+              style="padding: 10px 24px; background: #00897b; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer;">
+              Xac Nhan Da Thanh Toan
+            </button>
+          </form>
+        </div>
+      <% } else if (reservation.bookingType !== 'walkin_assist' && reservation.status === 'pending') { %>
+        <div style="margin-top: 18px; padding: 16px; background: #f0faf8; border-radius: 8px; border: 1.5px solid #b2dfdb;">
+          <p style="margin: 0 0 12px; font-size: 0.88rem; color: #0c5460;">Xac nhan dat ban nay se cap nhat trang thai va tao hoa don thanh toan.</p>
+          <form method="POST" action="/reception/reservations/<%= reservation._id %>/confirm" onsubmit="return confirm('Ban chac chan muon xac nhan dat ban nay?');">
+            <input type="hidden" name="confirmCode" value="CONFIRMED">
+            <button type="submit" style="padding: 10px 22px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem;">
+              Xac Nhan Dat Ban
+            </button>
+          </form>
+        </div>
+      <% } else if (reservation.paymentStatus === 'paid') { %>
+        <p style="color: #2e7d32; margin-top: 12px; font-size: 0.9rem; font-weight: 600;">Da thanh toan day du. Khong can hanh dong them.</p>
+      <% } else { %>
+        <p style="color: #607d8b; margin-top: 12px; font-size: 0.9rem;">Dat ban da duoc xu ly.</p>
+      <% } %>
+    </div>
+  </div>
+</div>

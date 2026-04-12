@@ -1,0 +1,113 @@
+<%- contentFor('body') %>
+
+<section class="staff-guest-orders">
+  <div class="container">
+    <div class="page-header">
+      <h1>Don Dat Ban Ho Khach</h1>
+      <a href="/staff/guest-orders/create" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Tao Don Moi
+      </a>
+    </div>
+
+    <div class="filter-bar">
+      <a href="/staff/guest-orders" class="filter-btn <%= statusFilter === 'all' ? 'active' : '' %>">Tat Ca</a>
+      <a href="/staff/guest-orders?status=pending" class="filter-btn <%= statusFilter === 'pending' ? 'active' : '' %>">Cho Xu Ly</a>
+      <a href="/staff/guest-orders?status=processing" class="filter-btn <%= statusFilter === 'processing' ? 'active' : '' %>">Dang Xu Ly</a>
+      <a href="/staff/guest-orders?status=completed" class="filter-btn <%= statusFilter === 'completed' ? 'active' : '' %>">Hoan Thanh</a>
+    </div>
+
+    <% if (orders.length === 0) { %>
+    <div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <p>Chua co don dat ban ho khach nao</p>
+      <a href="/staff/guest-orders/create" class="btn btn-primary btn-sm">Tao Don Dau Tien</a>
+    </div>
+    <% } else { %>
+    <div class="orders-table-wrapper">
+      <table class="orders-table">
+        <thead>
+          <tr>
+            <th>Ma Don</th>
+            <th>Ten Khach</th>
+            <th>SĐT</th>
+            <th>Thoi Gian Dat</th>
+            <th>Tien Coc</th>
+            <th>Tong Tien</th>
+            <th>Trang Thai</th>
+            <th>Nguoi Tao</th>
+            <th>Chi Tiet</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% orders.forEach(order => { %>
+          <tr>
+            <td><code>#<%= order._id.toString().slice(-6).toUpperCase() %></code></td>
+            <td><strong><%= order.guestName %></strong></td>
+            <td><%= order.guestPhone %></td>
+            <td>
+              <% if (order.minBookingTime) { %>
+              <%= new Date(order.minBookingTime).toLocaleDateString('vi-VN') %><br>
+              <small><%= new Date(order.minBookingTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) %></small>
+              <% } else { %>
+              -
+              <% } %>
+            </td>
+            <td><%= (order.depositAmount || 0).toLocaleString('vi-VN') %>d</td>
+            <td><strong><%= order.finalPrice.toLocaleString('vi-VN') %>d</strong></td>
+            <td>
+              <span class="status-badge status-<%= order.status %>">
+                <% if (order.status === 'pending') { %>Cho xu ly
+                <% } else if (order.status === 'processing') { %>Dang xu ly
+                <% } else if (order.status === 'completed') { %>Hoan thanh
+                <% } else if (order.status === 'cancelled') { %>Da huy
+                <% } else { %><%= order.status %><% } %>
+              </span>
+            </td>
+            <td>
+              <% if (order.staffId) { %>
+              <small><%= order.staffId.name %></small>
+              <% } else { %>-<% } %>
+            </td>
+            <td>
+              <a href="/staff/guest-orders/<%= order._id %>" class="btn btn-outline btn-sm">Xem</a>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</section>
+
+<style>
+.staff-guest-orders { padding: 20px 0; }
+.staff-guest-orders .container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.page-header h1 { font-size: 1.5rem; margin: 0; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; text-decoration: none; cursor: pointer; border: none; transition: all 0.2s; }
+.btn-primary { background: #2563eb; color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-outline { border: 1px solid #e5e7eb; background: white; color: #374151; }
+.btn-outline:hover { background: #f9fafb; }
+.btn-sm { padding: 6px 12px; font-size: 0.8125rem; }
+.filter-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.filter-btn { padding: 6px 14px; border-radius: 20px; font-size: 0.8125rem; text-decoration: none; color: #6b7280; background: #f3f4f6; transition: all 0.2s; }
+.filter-btn:hover { background: #e5e7eb; }
+.filter-btn.active { background: #2563eb; color: white; }
+.empty-state { text-align: center; padding: 60px 20px; background: #f9fafb; border-radius: 8px; }
+.empty-state svg { color: #9ca3af; margin-bottom: 12px; }
+.empty-state p { color: #6b7280; margin-bottom: 16px; }
+.orders-table-wrapper { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+.orders-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.orders-table th, .orders-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+.orders-table th { background: #f9fafb; font-weight: 600; color: #374151; }
+.orders-table tbody tr:hover { background: #f9fafb; }
+.orders-table code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+.status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
+.status-pending { background: #fef3c7; color: #92400e; }
+.status-processing { background: #dbeafe; color: #1e40af; }
+.status-completed { background: #d1fae5; color: #065f46; }
+.status-cancelled { background: #fee2e2; color: #991b1b; }
+</style>

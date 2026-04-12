@@ -1,0 +1,196 @@
+<section class="admin-guest-orders">
+  <div class="container">
+    <div class="page-header">
+      <h1>Quan Ly Don Dat Ban Ho Khach</h1>
+    </div>
+
+    <% if (locals.success) { %>
+    <div class="alert alert-success"><%= success %></div>
+    <% } %>
+    <% if (locals.error) { %>
+    <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <!-- Filters -->
+    <div class="filter-section">
+      <form method="GET" action="/admin/guest-orders" class="filter-form">
+        <div class="filter-group">
+          <input type="text" name="q" placeholder="Tim kiem ten, SDT khach..." value="<%= searchQuery %>" class="form-input">
+          <select name="status" class="form-input">
+            <option value="all" <%= statusFilter === 'all' ? 'selected' : '' %>>Tat ca trang thai</option>
+            <option value="pending" <%= statusFilter === 'pending' ? 'selected' : '' %>>Cho Xac Nhan</option>
+            <option value="approved" <%= statusFilter === 'approved' ? 'selected' : '' %>>Da Xac Nhan</option>
+            <option value="paid" <%= statusFilter === 'paid' ? 'selected' : '' %>>Da Thanh Toan</option>
+            <option value="processing" <%= statusFilter === 'processing' ? 'selected' : '' %>>Dang Xu Ly</option>
+            <option value="completed" <%= statusFilter === 'completed' ? 'selected' : '' %>>Hoan Thanh</option>
+            <option value="cancelled" <%= statusFilter === 'cancelled' ? 'selected' : '' %>>Huy Bo</option>
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm">Loc</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Orders Table -->
+    <% if (orders && orders.length > 0) { %>
+    <div class="table-responsive">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Ten Khach</th>
+            <th>SDT</th>
+            <th>Chi Nhanh</th>
+            <th>Tien Coc</th>
+            <th>Tong Tien</th>
+            <th>Trang Thai</th>
+            <th>Thanh Toan</th>
+            <th>Le Tan</th>
+            <th>Thao Tac</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% orders.forEach(order => { %>
+          <tr>
+            <td><strong><%= order.guestName %></strong></td>
+            <td><%= order.guestPhone %></td>
+            <td><%= order.branchId ? order.branchId.name : 'N/A' %></td>
+            <td><span class="badge badge-info"><%= (order.depositAmount || 100000).toLocaleString('vi-VN') %>d</span></td>
+            <td class="text-right"><%= order.finalPrice.toLocaleString('vi-VN') %>d</td>
+            <td>
+              <span class="status-badge status-<%= order.status %>"><%= order.status %></span>
+            </td>
+            <td>
+              <span class="payment-badge payment-<%= order.paymentStatus %>"><%= order.paymentStatus %></span>
+            </td>
+            <td><%= order.staffId ? order.staffId.name : 'N/A' %></td>
+            <td>
+              <a href="/admin/guest-orders/<%= order._id %>" class="btn btn-primary btn-xs">Chi Tiet</a>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <% } else { %>
+    <div class="alert alert-info">Khong co don dat ban nao.</div>
+    <% } %>
+  </div>
+</section>
+
+<style>
+.admin-guest-orders {
+  padding: 30px 0;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #eee;
+}
+
+.filter-section {
+  margin-bottom: 30px;
+  background: #f5f5f5;
+  padding: 20px;
+  border-radius: 6px;
+}
+
+.filter-form {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 30px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.admin-table thead {
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.admin-table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+}
+
+.admin-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.admin-table tbody tr:hover {
+  background: #f5f5f5;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-pending { background: #ffc107; color: #000; }
+.status-approved { background: #17a2b8; color: #fff; }
+.status-paid { background: #28a745; color: #fff; }
+.status-processing { background: #007bff; color: #fff; }
+.status-completed { background: #6c757d; color: #fff; }
+.status-cancelled { background: #dc3545; color: #fff; }
+
+.payment-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.payment-unpaid { background: #f8d7da; color: #721c24; }
+.payment-paid { background: #d4edda; color: #155724; }
+.payment-partial { background: #fff3cd; color: #856404; }
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-info {
+  background: #e7f3ff;
+  color: #0056b3;
+}
+
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+</style>

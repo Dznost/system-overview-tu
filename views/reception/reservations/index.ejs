@@ -1,0 +1,115 @@
+<div class="container" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+      <h1 style="margin: 0 0 4px; color: #1a3c34; font-size: 1.5rem;">Quan Ly Dat Ban</h1>
+      <p style="margin: 0; color: #607d8b; font-size: 0.88rem;">Tat ca cac don dat ban thuoc chi nhanh cua ban</p>
+    </div>
+    <a href="/reception/reservations/create-guest"
+      style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #00897b; color: white; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: background 0.2s;"
+      onmouseover="this.style.background='#00695c'" onmouseout="this.style.background='#00897b'">
+      + Dat Ban Ho Khach
+    </a>
+  </div>
+
+  <% if (noBranch) { %>
+    <div style="padding: 20px; background: #fdecea; color: #c62828; border-radius: 8px; border-left: 4px solid #c62828;">
+      Ban chua duoc gan chi nhanh. Vui long lien he admin.
+    </div>
+  <% } else { %>
+    <!-- Search & Filter -->
+    <div style="margin-bottom: 20px;">
+      <form method="GET" style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <input type="text" name="q" placeholder="Tim kiem ten, dien thoai..." value="<%= searchQuery %>"
+          style="flex: 1; min-width: 200px; padding: 9px 14px; border: 1.5px solid #b2dfdb; border-radius: 8px; font-size: 0.9rem; outline: none;">
+        <select name="status" style="padding: 9px 14px; border: 1.5px solid #b2dfdb; border-radius: 8px; font-size: 0.9rem; min-width: 160px; outline: none;">
+          <option value="all" <%= statusFilter === 'all' ? 'selected' : '' %>>Tat ca trang thai</option>
+          <option value="pending" <%= statusFilter === 'pending' ? 'selected' : '' %>>Cho xac nhan</option>
+          <option value="confirmed" <%= statusFilter === 'confirmed' ? 'selected' : '' %>>Da xac nhan</option>
+          <option value="completed" <%= statusFilter === 'completed' ? 'selected' : '' %>>Hoan thanh</option>
+        </select>
+        <select name="bookingType" style="padding: 9px 14px; border: 1.5px solid #b2dfdb; border-radius: 8px; font-size: 0.9rem; min-width: 160px; outline: none;">
+          <option value="" selected>Tat ca loai</option>
+          <option value="online" <%= req.query.bookingType === 'online' ? 'selected' : '' %>>Dat Truc Tuyen</option>
+          <option value="walkin_assist" <%= req.query.bookingType === 'walkin_assist' ? 'selected' : '' %>>Dat Ho Khach</option>
+        </select>
+        <button type="submit" style="padding: 9px 20px; background: #00897b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">Tim Kiem</button>
+        <a href="/reception/reservations" style="padding: 9px 16px; background: #f5f5f5; color: #555; border-radius: 8px; text-decoration: none; font-size: 0.9rem; font-weight: 600;">Xoa loc</a>
+      </form>
+    </div>
+
+    <!-- Reservations Table -->
+    <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 8px rgba(0,105,92,0.08);">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background: #f0faf8;">
+            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #b2dfdb; font-size: 0.8rem; text-transform: uppercase; color: #00695c; letter-spacing: 0.4px;">Khach Hang</th>
+            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #b2dfdb; font-size: 0.8rem; text-transform: uppercase; color: #00695c; letter-spacing: 0.4px;">Dien Thoai</th>
+            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #b2dfdb; font-size: 0.8rem; text-transform: uppercase; color: #00695c; letter-spacing: 0.4px;">Ngay Gio</th>
+            <th style="padding: 12px 16px; text-align: center; border-bottom: 2px solid #b2dfdb; font-size: 0.8rem; text-transform: uppercase; color: #00695c; letter-spacing: 0.4px;">So Khach</th>
+            <th style="padding: 12px 16px; text-align: center; border-bottom: 2px solid #b2dfdb; font-size: 0.8rem; text-transform: uppercase; color: #00695c; letter-spacing: 0.4px;">Loai</th>
+            <th style="padding: 12px 16px; text-align: center; border-bottom: 2px solid #b2dfdb; font-size: 0.8rem; text-transform: uppercase; color: #00695c; letter-spacing: 0.4px;">Trang Thai</th>
+            <th style="padding: 12px 16px; text-align: center; border-bottom: 2px solid #b2dfdb; font-size: 0.8rem; text-transform: uppercase; color: #00695c; letter-spacing: 0.4px;">Thanh Toan</th>
+            <th style="padding: 12px 16px; text-align: center; border-bottom: 2px solid #b2dfdb; font-size: 0.8rem; text-transform: uppercase; color: #00695c; letter-spacing: 0.4px;">Tac Vu</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (reservations && reservations.length > 0) { %>
+            <% reservations.forEach(res => { %>
+              <% const guestName = res.bookingType === 'walkin_assist' ? (res.guestName || 'Khach vang lai') : (res.userId?.name || 'Khach hang'); %>
+              <% const guestPhone = res.bookingType === 'walkin_assist' ? (res.guestPhone || '-') : (res.userId?.phone || '-'); %>
+              <tr style="border-bottom: 1px solid #e0f2f1;" onmouseover="this.style.background='#f0faf8'" onmouseout="this.style.background='transparent'">
+                <td style="padding: 12px 16px; font-weight: 600; color: #1a3c34;"><%= guestName %></td>
+                <td style="padding: 12px 16px; color: #555;"><%= guestPhone %></td>
+                <td style="padding: 12px 16px; font-size: 0.88rem;">
+                  <% const resDate = new Date(res.date); %>
+                  <div style="font-weight: 600; color: #333;"><%= resDate.getDate() %>/<%= resDate.getMonth() + 1 %>/<%= resDate.getFullYear() %></div>
+                  <div style="color: #888; font-size: 0.82rem;"><%= res.time || '-' %></div>
+                </td>
+                <td style="padding: 12px 16px; text-align: center;">
+                  <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: #e0f2f1; border-radius: 50%; font-weight: 700; color: #00695c; font-size: 0.88rem;"><%= res.guests %></span>
+                </td>
+                <td style="padding: 12px 16px; text-align: center;">
+                  <% if (res.bookingType === 'walkin_assist') { %>
+                    <span style="display: inline-block; padding: 3px 10px; background: #e8f5e9; color: #2e7d32; border-radius: 10px; font-size: 0.75rem; font-weight: 700; border: 1px solid #a5d6a7;">Ho Khach</span>
+                  <% } else { %>
+                    <span style="display: inline-block; padding: 3px 10px; background: #e3f2fd; color: #1565c0; border-radius: 10px; font-size: 0.75rem; font-weight: 700; border: 1px solid #90caf9;">Truc Tuyen</span>
+                  <% } %>
+                </td>
+                <td style="padding: 12px 16px; text-align: center;">
+                  <span style="display: inline-block; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;
+                    <%= res.status === 'pending' ? 'background:#fff3cd;color:#856404;' :
+                       res.status === 'confirmed' || res.status === 'paid' || res.status === 'processing' ? 'background:#d1ecf1;color:#0c5460;' :
+                       res.status === 'completed' ? 'background:#d4edda;color:#155724;' : 'background:#ffebee;color:#c62828;' %>">
+                    <%= res.status === 'pending' ? 'Cho XN' : 
+                        res.status === 'confirmed' ? 'Da XN' :
+                        res.status === 'paid' ? 'Da TT' :
+                        res.status === 'processing' ? 'Xu Ly' :
+                        res.status === 'completed' ? 'Hoan Thanh' : res.status %>
+                  </span>
+                </td>
+                <td style="padding: 12px 16px; text-align: center;">
+                  <span style="display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600;
+                    <%= res.paymentStatus === 'paid' ? 'background:#d4edda;color:#155724;' : 'background:#fff3cd;color:#856404;' %>">
+                    <%= res.paymentStatus === 'paid' ? 'Da TT' : 'Chua TT' %>
+                  </span>
+                </td>
+                <td style="padding: 12px 16px; text-align: center;">
+                  <a href="/reception/reservations/<%= res._id %>"
+                    style="display: inline-block; padding: 6px 14px; background: #00897b; color: white; border-radius: 6px; font-size: 0.8rem; font-weight: 600; text-decoration: none; transition: background 0.2s;"
+                    onmouseover="this.style.background='#00695c'" onmouseout="this.style.background='#00897b'">Chi Tiet</a>
+                </td>
+              </tr>
+            <% }); %>
+          <% } else { %>
+            <tr>
+              <td colspan="8" style="padding: 48px 20px; text-align: center; color: #aaa;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:block;margin:0 auto 12px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Khong tim thay dat ban nao
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

@@ -1,0 +1,382 @@
+<section class="admin-guest-order-detail">
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <h1>Chi Tiet Don Dat Ban Ho Khach</h1>
+        <p class="order-id">Ma Don: <strong><%= order._id %></strong></p>
+      </div>
+      <a href="/admin/guest-orders" class="btn btn-secondary">Quay Lai</a>
+    </div>
+
+    <% if (locals.success) { %>
+    <div class="alert alert-success"><%= success %></div>
+    <% } %>
+
+    <div class="detail-grid">
+      <!-- Guest Info -->
+      <div class="detail-card">
+        <h3>Thong Tin Khach Hang</h3>
+        <div class="info-row">
+          <span class="label">Ten Khach:</span>
+          <span class="value"><%= order.guestName %></span>
+        </div>
+        <div class="info-row">
+          <span class="label">So Dien Thoai:</span>
+          <span class="value"><%= order.guestPhone %></span>
+        </div>
+        <div class="info-row">
+          <span class="label">Email:</span>
+          <span class="value"><%= order.guestEmail || 'Khong co' %></span>
+        </div>
+      </div>
+
+      <!-- Order Info -->
+      <div class="detail-card">
+        <h3>Thong Tin Don Hang</h3>
+        <div class="info-row">
+          <span class="label">Chi Nhanh:</span>
+          <span class="value"><%= order.branchId ? order.branchId.name : 'N/A' %></span>
+        </div>
+        <div class="info-row">
+          <span class="label">Thoi Gian Dat:</span>
+          <span class="value"><%= new Date(order.minBookingTime).toLocaleString('vi-VN') %></span>
+        </div>
+        <div class="info-row">
+          <span class="label">Le Tan Tao:</span>
+          <span class="value"><%= order.staffId ? order.staffId.name : 'N/A' %></span>
+        </div>
+        <div class="info-row">
+          <span class="label">Ngay Tao:</span>
+          <span class="value"><%= new Date(order.createdAt).toLocaleString('vi-VN') %></span>
+        </div>
+      </div>
+
+      <!-- Payment Info -->
+      <div class="detail-card">
+        <h3>Thong Tin Thanh Toan</h3>
+        <div class="info-row">
+          <span class="label">Tien Coc:</span>
+          <span class="value amount"><%= (order.depositAmount || 100000).toLocaleString('vi-VN') %>d</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Tong Tien Mon:</span>
+          <span class="value amount"><%= order.totalPrice.toLocaleString('vi-VN') %>d</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Tong Thanh Toan:</span>
+          <span class="value amount final"><%= order.finalPrice.toLocaleString('vi-VN') %>d</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Trang Thai Thanh Toan:</span>
+          <span class="value payment-badge payment-<%= order.paymentStatus %>"><%= order.paymentStatus %></span>
+        </div>
+        <div class="info-row">
+          <span class="label">Phuong Thuc:</span>
+          <span class="value"><%= order.paymentMethod || 'Khong ro' %></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items -->
+    <div class="items-card">
+      <h3>Chi Tiet Mon An</h3>
+      <% if (order.items && order.items.length > 0) { %>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Mon An</th>
+            <th>So Luong</th>
+            <th>Don Gia</th>
+            <th>Giam Gia</th>
+            <th>Thanh Tien</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% order.items.forEach(item => { %>
+          <tr>
+            <td><%= item.name %></td>
+            <td><%= item.quantity %></td>
+            <td><%= item.price.toLocaleString('vi-VN') %>d</td>
+            <td><%= item.discount %>%</td>
+            <td><%= (item.price * item.quantity).toLocaleString('vi-VN') %>d</td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <% } else { %>
+      <p>Khong co mon an nao.</p>
+      <% } %>
+    </div>
+
+    <!-- Special Requests -->
+    <% if (order.specialRequests) { %>
+    <div class="detail-card">
+      <h3>Ghi Chu</h3>
+      <p><%= order.specialRequests %></p>
+    </div>
+    <% } %>
+
+    <!-- Payment Info -->
+    <% if (typeof payment !== 'undefined' && payment) { %>
+    <div class="detail-card payment-card">
+      <h3 style="color: #059669;">Thong Tin Thanh Toan</h3>
+      <div class="info-row">
+        <span class="label">Ma Thanh Toan</span>
+        <span class="value"><code>#<%= payment._id.toString().slice(-8).toUpperCase() %></code></span>
+      </div>
+      <div class="info-row">
+        <span class="label">Phuong Thuc</span>
+        <span class="value">
+          <% if (payment.paymentMethod === 'cash') { %>Tien mat
+          <% } else if (payment.paymentMethod === 'transfer') { %>Chuyen khoan
+          <% } else { %>The ngan hang<% } %>
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="label">So Tien</span>
+        <span class="value" style="font-weight: 700; color: #059669;"><%= payment.finalAmount.toLocaleString('vi-VN') %>d</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Trang Thai</span>
+        <span class="value">
+          <span class="status-badge status-<%= payment.status %>">
+            <% if (payment.status === 'completed') { %>Da Thanh Toan
+            <% } else if (payment.status === 'pending') { %>Cho Thanh Toan
+            <% } else { %>That Bai<% } %>
+          </span>
+        </span>
+      </div>
+      <% if (payment.collectedBy) { %>
+      <div class="info-row">
+        <span class="label">Thu Boi</span>
+        <span class="value"><%= payment.collectedBy.name %></span>
+      </div>
+      <% } %>
+      <% if (payment.paidAt) { %>
+      <div class="info-row">
+        <span class="label">Ngay Thanh Toan</span>
+        <span class="value"><%= new Date(payment.paidAt).toLocaleString('vi-VN') %></span>
+      </div>
+      <% } %>
+      <div class="info-row deposit-info">
+        <span class="label">Tien Coc Da Thu</span>
+        <span class="value" style="color: #f59e0b;"><%= (payment.depositAmount || 100000).toLocaleString('vi-VN') %>d</span>
+      </div>
+    </div>
+    <% } else if (order.paymentStatus === 'unpaid') { %>
+    <div class="detail-card payment-pending">
+      <h3 style="color: #f59e0b;">Chua Thanh Toan</h3>
+      <p style="color: #666; font-size: 0.875rem;">Don hang chua duoc thanh toan. Cap nhat trang thai thanh toan khi khach da thanh toan.</p>
+    </div>
+    <% } %>
+
+    <!-- Status Update Form -->
+    <div class="detail-card form-card">
+      <h3>Cap Nhat Trang Thai</h3>
+      <form method="POST" action="/admin/guest-orders/<%= order._id %>/status">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="status">Trang Thai Don Hang</label>
+            <select id="status" name="status" class="form-input">
+              <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Cho Xac Nhan</option>
+              <option value="approved" <%= order.status === 'approved' ? 'selected' : '' %>>Da Xac Nhan</option>
+              <option value="processing" <%= order.status === 'processing' ? 'selected' : '' %>>Dang Xu Ly</option>
+              <option value="completed" <%= order.status === 'completed' ? 'selected' : '' %>>Hoan Thanh</option>
+              <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Huy Bo</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="paymentStatus">Trang Thai Thanh Toan</label>
+            <select id="paymentStatus" name="paymentStatus" class="form-input">
+              <option value="unpaid" <%= order.paymentStatus === 'unpaid' ? 'selected' : '' %>>Chua Thanh Toan</option>
+              <option value="paid" <%= order.paymentStatus === 'paid' ? 'selected' : '' %>>Da Thanh Toan</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="paymentMethod">Phuong Thuc Thanh Toan</label>
+            <select id="paymentMethod" name="paymentMethod" class="form-input">
+              <option value="cash" <%= order.paymentMethod === 'cash' ? 'selected' : '' %>>Tien Mat</option>
+              <option value="transfer" <%= order.paymentMethod === 'transfer' ? 'selected' : '' %>>Chuyen Khoan</option>
+              <option value="bank" <%= order.paymentMethod === 'bank' ? 'selected' : '' %>>The Ngan Hang</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Cap Nhat</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<style>
+.admin-guest-order-detail {
+  padding: 30px 0;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #eee;
+}
+
+.order-id {
+  color: #666;
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.detail-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.detail-card h3 {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 16px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row .label {
+  font-weight: 600;
+  color: #555;
+}
+
+.info-row .value {
+  color: #333;
+  text-align: right;
+}
+
+.amount {
+  color: #d9534f;
+  font-weight: 600;
+}
+
+.amount.final {
+  font-size: 18px;
+  color: #27ae60;
+}
+
+.items-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.items-table thead {
+  background: #f8f9fa;
+}
+
+.items-table th {
+  padding: 10px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #ddd;
+}
+
+.items-table td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.form-card {
+  margin-top: 30px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 15px;
+}
+@media (max-width: 768px) {
+  .form-row { grid-template-columns: 1fr; }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #555;
+}
+
+.form-input {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.payment-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.payment-unpaid {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.payment-paid {
+  background: #d4edda;
+  color: #155724;
+}
+
+.payment-card {
+  border-left: 4px solid #059669;
+  background: #f0fdf4;
+}
+
+.payment-pending {
+  border-left: 4px solid #f59e0b;
+  background: #fffbeb;
+}
+
+.deposit-info {
+  background: #fef3c7;
+  margin: 0 -20px;
+  padding: 10px 20px;
+  border-radius: 0 0 8px 8px;
+}
+
+.status-badge.status-completed { background: #d1fae5; color: #065f46; }
+.status-badge.status-pending { background: #fef3c7; color: #92400e; }
+.status-badge.status-failed { background: #fee2e2; color: #991b1b; }
+</style>

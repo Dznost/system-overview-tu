@@ -1,0 +1,258 @@
+<%- contentFor('body') %>
+
+<section class="staff-guest-order-detail">
+  <div class="container">
+    <div class="page-header">
+      <h1>Chi Tiet Don Dat Ban #<%= order._id.toString().slice(-6).toUpperCase() %></h1>
+      <a href="/staff/guest-orders" class="btn btn-secondary btn-sm">Quay Lai</a>
+    </div>
+
+    <% if (success === 'created') { %>
+    <div class="alert alert-success">Don dat ban ho khach da duoc tao thanh cong! Don hang se chuyen den staff de xu ly.</div>
+    <% } else if (success === 'completed') { %>
+    <div class="alert alert-success">Don hang da duoc xac nhan hoan thanh va ghi nhan thanh toan!</div>
+    <% } %>
+    <% 
+    var errorMsg = typeof error !== 'undefined' ? error : null;
+    if (!errorMsg && typeof success !== 'undefined' && success === 'false') errorMsg = 'Ma xac nhan khong dung';
+    %>
+    <% if (errorMsg) { %>
+    <div class="alert alert-error"><%= errorMsg %></div>
+    <% } %>
+
+    <div class="detail-grid">
+      <!-- Order info -->
+      <div class="detail-card">
+        <h3>Thong Tin Don Hang</h3>
+        <div class="info-row">
+          <span class="label">Ma don:</span>
+          <span class="value"><code>#<%= order._id.toString().slice(-6).toUpperCase() %></code></span>
+        </div>
+        <div class="info-row">
+          <span class="label">Loai don:</span>
+          <span class="value">
+            <span class="badge badge-guest">Dat Ban Ho Khach</span>
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="label">Trang thai:</span>
+          <span class="value">
+            <span class="status-badge status-<%= order.status %>">
+              <% if (order.status === 'pending') { %>Cho xu ly
+              <% } else if (order.status === 'processing') { %>Dang xu ly
+              <% } else if (order.status === 'completed') { %>Hoan thanh
+              <% } else if (order.status === 'cancelled') { %>Da huy
+              <% } else { %><%= order.status %><% } %>
+            </span>
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="label">Thanh toan:</span>
+          <span class="value">
+            <span class="payment-badge payment-<%= order.paymentStatus %>">
+              <% if (order.paymentStatus === 'paid') { %>Da thanh toan
+              <% } else { %>Chua thanh toan<% } %>
+            </span>
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="label">Ngay tao:</span>
+          <span class="value"><%= new Date(order.createdAt).toLocaleString('vi-VN') %></span>
+        </div>
+        <% if (order.staffId) { %>
+        <div class="info-row">
+          <span class="label">Nguoi tao:</span>
+          <span class="value"><%= order.staffId.name %></span>
+        </div>
+        <% } %>
+        <% if (order.minBookingTime) { %>
+        <div class="info-row highlight">
+          <span class="label">Thoi gian dat:</span>
+          <span class="value"><strong><%= new Date(order.minBookingTime).toLocaleString('vi-VN') %></strong></span>
+        </div>
+        <% } %>
+        <% if (order.branchId) { %>
+        <div class="info-row">
+          <span class="label">Chi nhanh:</span>
+          <span class="value"><%= order.branchId.name %></span>
+        </div>
+        <% } %>
+      </div>
+
+      <!-- Guest info -->
+      <div class="detail-card">
+        <h3>Thong Tin Khach Hang</h3>
+        <div class="info-row">
+          <span class="label">Ho ten:</span>
+          <span class="value"><strong><%= order.guestName %></strong></span>
+        </div>
+        <div class="info-row">
+          <span class="label">So dien thoai:</span>
+          <span class="value"><a href="tel:<%= order.guestPhone %>"><%= order.guestPhone %></a></span>
+        </div>
+        <% if (order.guestEmail) { %>
+        <div class="info-row">
+          <span class="label">Email:</span>
+          <span class="value"><a href="mailto:<%= order.guestEmail %>"><%= order.guestEmail %></a></span>
+        </div>
+        <% } %>
+        <% if (order.specialRequests) { %>
+        <div class="info-row">
+          <span class="label">Ghi chu:</span>
+          <span class="value"><%= order.specialRequests %></span>
+        </div>
+        <% } %>
+      </div>
+
+      <!-- Order items -->
+      <div class="detail-card full-width">
+        <h3>Cac Mon Dat</h3>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Mon</th>
+              <th>Don gia</th>
+              <th>SL</th>
+              <th>Thanh tien</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% order.items.forEach(item => { %>
+            <tr>
+              <td><%= item.name %></td>
+              <td><%= item.price.toLocaleString('vi-VN') %>d</td>
+              <td><%= item.quantity %></td>
+              <td><%= (item.price * item.quantity).toLocaleString('vi-VN') %>d</td>
+            </tr>
+            <% }) %>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3">Tien mon:</td>
+              <td><%= order.totalPrice.toLocaleString('vi-VN') %>d</td>
+            </tr>
+            <tr class="deposit">
+              <td colspan="3">Tien coc:</td>
+              <td><%= (order.depositAmount || 100000).toLocaleString('vi-VN') %>d</td>
+            </tr>
+            <tr class="total">
+              <td colspan="3"><strong>Tong cong:</strong></td>
+              <td><strong><%= order.finalPrice.toLocaleString('vi-VN') %>d</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Payment Info (if completed) -->
+      <% if (typeof payment !== 'undefined' && payment) { %>
+      <div class="detail-card full-width payment-card">
+        <h3 style="color: #059669;">Thong Tin Thanh Toan</h3>
+        <div class="payment-grid">
+          <div class="info-row">
+            <span class="label">Ma thanh toan:</span>
+            <span class="value"><code>#<%= payment._id.toString().slice(-8).toUpperCase() %></code></span>
+          </div>
+          <div class="info-row">
+            <span class="label">Phuong thuc:</span>
+            <span class="value">
+              <% if (payment.paymentMethod === 'cash') { %>Tien mat
+              <% } else if (payment.paymentMethod === 'transfer') { %>Chuyen khoan
+              <% } else { %>The ngan hang<% } %>
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="label">So tien:</span>
+            <span class="value" style="color: #059669; font-weight: 700;"><%= payment.finalAmount.toLocaleString('vi-VN') %>d</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Ngay thanh toan:</span>
+            <span class="value"><%= payment.paidAt ? new Date(payment.paidAt).toLocaleString('vi-VN') : '-' %></span>
+          </div>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Actions -->
+      <% if (order.status !== 'completed' && order.status !== 'cancelled') { %>
+      <div class="detail-card full-width">
+        <h3>Xac Nhan Hoan Thanh & Thanh Toan</h3>
+        <p class="action-note">Khi khach den va thanh toan day du (<strong><%= order.finalPrice.toLocaleString('vi-VN') %>d</strong>), chon phuong thuc thanh toan va nhap "CONFIRMED" de xac nhan.</p>
+        <form method="POST" action="/staff/guest-orders/<%= order._id %>/confirm-completed" class="confirm-form-vertical">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="paymentMethod">Phuong thuc thanh toan</label>
+              <select name="paymentMethod" id="paymentMethod" class="form-input" required>
+                <option value="cash">Tien mat</option>
+                <option value="transfer">Chuyen khoan</option>
+                <option value="bank">The ngan hang</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="confirmCode">Ma xac nhan</label>
+              <input type="text" name="confirmCode" id="confirmCode" placeholder="Nhap CONFIRMED" class="form-input" required>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-success">Xac Nhan Hoan Thanh & Ghi Nhan Thanh Toan</button>
+          </div>
+        </form>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<style>
+.staff-guest-order-detail { padding: 20px 0; }
+.staff-guest-order-detail .container { max-width: 1000px; margin: 0 auto; padding: 0 15px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.page-header h1 { font-size: 1.5rem; margin: 0; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; text-decoration: none; cursor: pointer; border: none; transition: all 0.2s; }
+.btn-secondary { background: #6b7280; color: white; }
+.btn-success { background: #059669; color: white; }
+.btn-success:hover { background: #047857; }
+.btn-sm { padding: 6px 12px; font-size: 0.8125rem; }
+.alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; }
+.alert-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
+.detail-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; }
+.detail-card.full-width { grid-column: 1 / -1; }
+.detail-card h3 { font-size: 1rem; margin: 0 0 16px 0; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb; }
+.info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 0.875rem; }
+.info-row:last-child { border-bottom: none; }
+.info-row .label { color: #6b7280; }
+.info-row .value { font-weight: 500; }
+.info-row.highlight { background: #fef3c7; margin: 0 -20px; padding: 8px 20px; }
+.info-row a { color: #2563eb; text-decoration: none; }
+.info-row a:hover { text-decoration: underline; }
+code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+.badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
+.badge-guest { background: #dbeafe; color: #1e40af; }
+.status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
+.status-pending { background: #fef3c7; color: #92400e; }
+.status-processing { background: #dbeafe; color: #1e40af; }
+.status-completed { background: #d1fae5; color: #065f46; }
+.status-cancelled { background: #fee2e2; color: #991b1b; }
+.payment-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
+.payment-paid { background: #d1fae5; color: #065f46; }
+.payment-unpaid { background: #fee2e2; color: #991b1b; }
+.items-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.items-table th, .items-table td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+.items-table th { background: #f9fafb; font-weight: 600; }
+.items-table tfoot td { border-top: 2px solid #e5e7eb; }
+.items-table tfoot .deposit td { color: #f59e0b; }
+.items-table tfoot .total td { font-weight: 700; }
+.action-note { font-size: 0.875rem; color: #6b7280; margin-bottom: 16px; }
+.confirm-form-vertical { display: flex; flex-direction: column; gap: 16px; }
+.confirm-form-vertical .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 600px) { .confirm-form-vertical .form-row { grid-template-columns: 1fr; } }
+.confirm-form-vertical .form-group { margin: 0; }
+.confirm-form-vertical .form-group label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 6px; color: #374151; }
+.confirm-form-vertical .form-actions { margin-top: 8px; }
+.form-input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem; }
+.payment-card { background: #f0fdf4; border-left: 4px solid #059669; }
+.payment-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (max-width: 600px) { .payment-grid { grid-template-columns: 1fr; } }
+</style>

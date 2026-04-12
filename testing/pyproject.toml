@@ -1,0 +1,23 @@
+[project]
+name = "restaurant-selenium-tests"
+version = "1.0.0"
+description = "Automated testing suite for restaurant management system using Selenium"
+requires-python = ">=3.9"
+dependencies = [
+    "selenium>=4.15.0",
+    "pytest>=7.4.0",
+    "pytest-xdist>=3.5.0",
+    "python-dotenv>=1.0.0",
+    "webdriver-manager>=4.0.0",
+    "pytest-timeout>=2.2.0",
+    "pytest-html>=4.1.0",
+    "allure-pytest>=2.13.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --html=reports/report.html --self-contained-html"
+timeout = 30

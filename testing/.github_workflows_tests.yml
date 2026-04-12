@@ -1,0 +1,98 @@
+name: Selenium Automated Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests daily at 2 AM
+    - cron: '0 2 * * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+    
+    services:
+      mongodb:
+        image: mongo:latest
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install application dependencies
+      run: npm install
+    
+    - name: Start application
+      run: npm start &
+      env:
+        MONGO_URI: mongodb://localhost:27017/restaurant_test
+    
+    - name: Wait for application to start
+      run: sleep 10
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('testing/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install test dependencies
+      run: |
+        cd testing
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Setup test environment
+      run: |
+        cd testing
+        cp .env.example .env
+    
+    - name: Run Selenium tests (headless)
+      run: |
+        cd testing
+        python run_tests.py --headless
+    
+    - name: Upload test reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-reports-py${{ matrix.python-version }}
+        path: testing/reports/
+    
+    - name: Upload screenshots on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-screenshots
+        path: testing/screenshots/
+    
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-logs-py${{ matrix.python-version }}
+        path: testing/logs/
