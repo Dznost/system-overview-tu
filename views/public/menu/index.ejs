@@ -98,17 +98,22 @@
                             </div>
                         </div>
                         <div class="dish-card-body">
-                            <div class="dish-card-category">
-                                <% 
-                                    const categoryMap = {
-                                        'appetizer': 'Khai Vi',
-                                        'main': 'Mon Chinh',
-                                        'dessert': 'Trang Mieng',
-                                        'beverage': 'Do Uong'
-                                    };
-                                    const categoryName = categoryMap[dish.category] || dish.category;
-                                %>
-                                <%= categoryName %>
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <div class="dish-card-category">
+                                    <% 
+                                        const categoryMap = {
+                                            'appetizer': 'Khai Vi',
+                                            'main': 'Mon Chinh',
+                                            'dessert': 'Trang Mieng',
+                                            'beverage': 'Do Uong'
+                                        };
+                                        const categoryName = categoryMap[dish.category] || dish.category;
+                                    %>
+                                    <%= categoryName %>
+                                </div>
+                                <span style="background: #f0fdf4; color: #16a34a; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; white-space: nowrap;">
+                                    Con: <%= dish.quantity || 0 %>
+                                </span>
                             </div>
                             <h3 class="dish-card-title"><%= dish.name %></h3>
                             <p class="dish-card-desc"><%= dish.description ? dish.description.substring(0, 80) + '...' : 'Mon an dac sac tai La Maison' %></p>

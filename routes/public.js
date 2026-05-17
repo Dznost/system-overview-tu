@@ -97,6 +97,39 @@ router.get("/dish/:id", async (req, res) => {
   }
 })
 
+// Products List
+router.get("/products", async (req, res) => {
+  try {
+    const search = req.query.search || ""
+
+    const query = {}
+    if (search) {
+      query.$or = [{ name: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }]
+    }
+
+    const products = await Product.find(query).sort({ isHot: -1, isBestSelling: -1, createdAt: -1 })
+    res.render("public/products/index", { 
+      products, 
+      search, 
+      title: "San Pham",
+      metaDescription: "Cac san pham chat luong cao cho nha bep va ban an cua ban."
+    })
+  } catch (error) {
+    res.status(500).render("error", { error: error.message, layout: false })
+  }
+})
+
+// Product detail
+router.get("/product/:id", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id)
+    if (!product) return res.status(404).render("404", { layout: false })
+    res.render("public/products/detail", { product, title: product.name })
+  } catch (error) {
+    res.status(500).render("error", { error: error.message, layout: false })
+  }
+})
+
 // Branches
 router.get("/branches", async (req, res) => {
   try {

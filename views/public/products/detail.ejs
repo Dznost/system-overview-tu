@@ -1,0 +1,500 @@
+<!-- Product Detail Page -->
+<section class="product-detail-section">
+    <div class="container">
+        <div class="product-detail-grid">
+            <!-- Product Image -->
+            <div class="product-detail-image-col">
+                <div class="product-detail-image">
+                    <img src="<%= product.image || 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=800&h=800&fit=crop' %>" 
+                         alt="<%= product.name %>"
+                         onerror="this.src='https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=800&h=800&fit=crop'">
+                    <% if (product.discount > 0) { %>
+                        <span class="detail-discount-badge">Giam <%= product.discount %>%</span>
+                    <% } %>
+                    <% if (product.isHot) { %>
+                        <span class="detail-hot-badge">HOT</span>
+                    <% } %>
+                    <% if (product.quantity === 0) { %>
+                        <span class="detail-out-of-stock">Chay Hang</span>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Product Info -->
+            <div class="product-detail-info-col">
+                <div class="product-detail-breadcrumb">
+                    <a href="/products">San Pham</a> / <%= product.name %>
+                </div>
+
+                <h1 class="product-detail-title"><%= product.name %></h1>
+
+                <div class="product-detail-rating">
+                    <div class="stars">
+                        <% for (let i = 0; i < 5; i++) { %>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="<%= i < 4 ? '#fbbf24' : '#e5e7eb' %>" stroke="currentColor" stroke-width="1">
+                                <polygon points="12 2 15.09 10.26 24 10.35 17.77 16.01 20.16 24.02 12 18.77 3.84 24.02 6.23 16.01 0 10.35 8.91 10.26 12 2"/>
+                            </svg>
+                        <% } %>
+                    </div>
+                    <span class="rating-text">(4.0) 128 danh gia</span>
+                </div>
+
+                <div class="product-detail-price-section">
+                    <div class="price-display">
+                        <% if (product.discount > 0) { %>
+                            <span class="detail-price-original"><%= product.price.toLocaleString('vi-VN') %>d</span>
+                            <span class="detail-price-final"><%= Math.round(product.price * (1 - product.discount/100)).toLocaleString('vi-VN') %>d</span>
+                        <% } else { %>
+                            <span class="detail-price-final"><%= product.price.toLocaleString('vi-VN') %>d</span>
+                        <% } %>
+                    </div>
+                    <% if (product.discount > 0) { %>
+                        <span class="price-saving">Tiet kiem <%= product.discount %>%</span>
+                    <% } %>
+                </div>
+
+                <div class="product-detail-description">
+                    <h3>Mo Ta</h3>
+                    <p><%= product.description || 'San pham chat luong cao' %></p>
+                </div>
+
+                <% if (product.quantity === 0) { %>
+                    <div class="out-of-stock-notice">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>
+                        </svg>
+                        <span>San pham hien tai da het hang. Vui long quay lai sau.</span>
+                    </div>
+                <% } else { %>
+                    <div class="product-detail-quantity">
+                        <span>So luong co san: <strong style="color: #16a34a;"><%= product.quantity %> </strong></span>
+                    </div>
+
+                    <% if (locals.isLoggedIn) { %>
+                        <form action="/user/cart/add" method="POST" class="product-add-to-cart-form">
+                            <input type="hidden" name="productId" value="<%= product._id %>">
+                            
+                            <div class="quantity-selector">
+                                <label for="quantity">So Luong:</label>
+                                <div class="quantity-input-group">
+                                    <button type="button" class="qty-btn" onclick="decreaseQty()">-</button>
+                                    <input type="number" id="quantity" name="quantity" value="1" min="1" max="<%= product.quantity %>" class="qty-input">
+                                    <button type="button" class="qty-btn" onclick="increaseQty()">+</button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 20px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                                </svg>
+                                Them Vao Gio Hang
+                            </button>
+                        </form>
+                    <% } else { %>
+                        <div class="login-required-notice">
+                            <p>Hay <a href="/login">dang nhap</a> hoac <a href="/register">dang ky</a> de them san pham vao gio hang</p>
+                        </div>
+                    <% } %>
+                <% } %>
+
+                <div class="product-detail-info-boxes">
+                    <div class="info-box">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                        <div>
+                            <h4>Chat Luong Cao</h4>
+                            <p>Duoc kiem chung cam</p>
+                        </div>
+                    </div>
+                    <div class="info-box">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><path d="M1 10h22"/>
+                        </svg>
+                        <div>
+                            <h4>Thanh Toan An Toan</h4>
+                            <p>Nhiều phương thức thanh toán</p>
+                        </div>
+                    </div>
+                    <div class="info-box">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <div>
+                            <h4>Ho Tro Khach Hang</h4>
+                            <p>24/7 san sang giup do</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Related Products Section -->
+<section class="related-products-section">
+    <div class="container">
+        <h2>San Pham Lien Quan</h2>
+        <div class="related-products-grid">
+            <!-- Related products can be populated dynamically -->
+            <p style="text-align: center; color: #6b7280;">Tinh nang dang phat trien</p>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Product Detail */
+.product-detail-section {
+    padding: 60px 20px;
+    background: white;
+}
+
+.product-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: start;
+}
+
+.product-detail-image {
+    position: relative;
+    aspect-ratio: 1;
+    background: #f9fafb;
+    border-radius: 12px;
+    overflow: hidden;
+    sticky: true;
+}
+
+.product-detail-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.detail-discount-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: #dc2626;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.detail-hot-badge {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.875rem;
+}
+
+.detail-out-of-stock {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: #dc2626;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+}
+
+.product-detail-info-col {
+    padding: 20px 0;
+}
+
+.product-detail-breadcrumb {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 16px;
+}
+
+.product-detail-breadcrumb a {
+    color: #8B6F47;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.product-detail-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 16px 0;
+}
+
+.product-detail-rating {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.stars {
+    display: flex;
+    gap: 4px;
+}
+
+.rating-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.product-detail-price-section {
+    margin-bottom: 32px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.price-display {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.detail-price-original {
+    text-decoration: line-through;
+    color: #999;
+    font-size: 1.125rem;
+}
+
+.detail-price-final {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.price-saving {
+    color: #dc2626;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.product-detail-description {
+    margin-bottom: 24px;
+}
+
+.product-detail-description h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 12px 0;
+}
+
+.product-detail-description p {
+    color: #6b7280;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.out-of-stock-notice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #991b1b;
+    font-weight: 500;
+    margin-bottom: 24px;
+}
+
+.product-detail-quantity {
+    padding: 16px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    color: #166534;
+    font-weight: 500;
+    margin-bottom: 24px;
+}
+
+.quantity-selector {
+    margin-bottom: 24px;
+}
+
+.quantity-selector label {
+    display: block;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 8px;
+}
+
+.quantity-input-group {
+    display: flex;
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    width: fit-content;
+}
+
+.qty-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.25rem;
+    color: #6b7280;
+    transition: all 0.3s;
+}
+
+.qty-btn:hover {
+    background: #f3f4f6;
+    color: #1f2937;
+}
+
+.qty-input {
+    width: 60px;
+    border: none;
+    border-left: 1px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.qty-input:focus {
+    outline: none;
+}
+
+.product-add-to-cart-form {
+    margin-bottom: 24px;
+}
+
+.login-required-notice {
+    padding: 16px;
+    background: #dbeafe;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    color: #1e40af;
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.login-required-notice a {
+    color: #1e40af;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.product-detail-info-boxes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 32px;
+}
+
+.info-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.info-box svg {
+    color: #8B6F47;
+}
+
+.info-box h4 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+.info-box p {
+    font-size: 0.8125rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Related Products */
+.related-products-section {
+    padding: 60px 20px;
+    background: #f9fafb;
+}
+
+.related-products-section h2 {
+    text-align: center;
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 40px 0;
+}
+
+.related-products-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .product-detail-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+
+    .product-detail-title {
+        font-size: 1.5rem;
+    }
+
+    .detail-price-final {
+        font-size: 1.5rem;
+    }
+
+    .product-detail-info-boxes {
+        grid-template-columns: 1fr;
+    }
+
+    .related-products-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .product-detail-info-boxes {
+        grid-template-columns: 1fr;
+    }
+
+    .related-products-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+function decreaseQty() {
+    const input = document.getElementById('quantity');
+    const value = parseInt(input.value);
+    if (value > 1) {
+        input.value = value - 1;
+    }
+}
+
+function increaseQty() {
+    const input = document.getElementById('quantity');
+    const max = parseInt(input.max);
+    const value = parseInt(input.value);
+    if (value < max) {
+        input.value = value + 1;
+    }
+}
+</script>
