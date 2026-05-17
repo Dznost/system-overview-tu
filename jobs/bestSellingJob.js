@@ -1,14 +1,20 @@
 const inventoryManager = require("../utils/inventoryManager");
 
 /**
- * Periodic job to check and demote best-selling dishes after 24 hours
+ * Periodic job to check and demote best-selling dishes and products after 24 hours
  * Should be called every hour or as needed
  */
 exports.checkBestSellingExpiration = async () => {
   try {
     console.log("[restaurant] Running best-selling expiration check...");
-    const result = await inventoryManager.checkBestSellingExpiration();
-    console.log("[restaurant] Best-selling check completed. Demoted:", result.modifiedCount);
+    
+    // Check dishes
+    const dishResult = await inventoryManager.checkBestSellingExpiration();
+    console.log("[restaurant] Dishes best-selling check completed. Demoted:", dishResult.modifiedCount);
+    
+    // Check products
+    const productResult = await inventoryManager.checkProductBestSellingExpiration();
+    console.log("[restaurant] Products best-selling check completed. Demoted:", productResult.modifiedCount);
   } catch (error) {
     console.error("[restaurant] Error in best-selling job:", error);
   }

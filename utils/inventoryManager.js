@@ -1,4 +1,5 @@
 const Dish = require("../models/Dish");
+const Product = require("../models/Product");
 
 /**
  * Decrement dish quantity when item is added to cart/order
@@ -198,6 +199,201 @@ exports.getBestSellingDishes = async () => {
     return await Dish.find({ isBestSelling: true }).sort({ totalOrdersCompleted: -1 });
   } catch (error) {
     console.error("[restaurant] Error in getBestSellingDishes:", error);
+    throw error;
+  }
+};
+
+// ========================================
+// PRODUCT INVENTORY METHODS
+// ========================================
+
+/**
+ * Decrement product quantity when item is added to cart/order
+ * @param {ObjectId} productId - ID of the product
+ * @param {ObjectId} branchId - ID of the branch (optional, for branch-specific quantity)
+ * @param {number} quantity - Amount to decrement
+ * @returns {Promise<Object>} Updated product object
+ */
+exports.decrementProductQuantity = async (productId, branchId = null, quantity = 1) => {
+  try {
+    if (branchId) {
+      const product = await Product.findById(productId);
+      if (!product) {
+        throw new Error("Product not found");
+      }
+
+      let branchInv = product.branchInventory.find(
+        (inv) => inv.branchId.toString() === branchId.toString()
+      );
+
+      if (!branchInv) {
+        product.branchInventory.push({ branchId, quantity: 0 });
+        branchInv = product.branchInventory[product.branchInventory.length - 1];
+      }
+
+      const newQuantity = Math.max(0, branchInv.quantity - quantity);
+      branchInv.quantity = newQuantity;
+
+      product.quantity = Math.max(0, product.quantity - quantity);
+
+      await product.save();
+      return product;
+    } else {
+      const product = await Product.findByIdAndUpdate(
+        productId,
+        { $inc: { quantity: -quantity } },
+        { new: true }
+      );
+      return product;
+    }
+  } catch (error) {
+    console.error("[restaurant] Error in decrementProductQuantity:", error);
+    throw error;
+  }
+};
+
+/**
+ * Increment product quantity when order is cancelled
+ * @param {ObjectId} productId - ID of the product
+ * @param {ObjectId} branchId - ID of the branch (optional)
+ * @param {number} quantity - Amount to increment
+ * @returns {Promise<Object>} Updated product object
+ */
+exports.incrementProductQuantity = async (productId, branchId = null, quantity = 1) => {
+  try {
+    if (branchId) {
+      const product = await Product.findById(productId);
+      if (!product) {
+        throw new Error("Product not found");
+      }
+
+      let branchInv = product.branchInventory.find(
+        (inv) => inv.branchId.toString() === branchId.toString()
+      );
+
+      if (!branchInv) {
+        product.branchInventory.push({ branchId, quantity });
+      } else {
+        branchInv.quantity += quantity;
+      }
+
+      product.quantity += quantity;
+
+      await product.save();
+      return product;
+    } else {
+      const product = await Product.findByIdAndUpdate(
+        productId,
+        { $inc: { quantity } },
+        { new: true }
+      );
+      return product;
+    }
+  } catch (error) {
+    console.error("[restaurant] Error in incrementProductQuantity:", error);
+    throw error;
+  }
+};
+
+/**
+ * Increment order count when product order is completed
+ * @param {ObjectId} productId - ID of the product
+ * @returns {Promise<Object>} Updated product object
+ */
+exports.incrementProductOrderCount = async (productId) => {
+  try {
+    const product = await Product.findByIdAndUpdate(
+      productId,
+      { $inc: { totalOrdersCompleted: 1 } },
+      { new: true }
+    );
+
+    // Check if should be promoted to best-selling (>= 20 completed orders)
+    if (product.totalOrdersCompleted >= 20 && !product.isBestSelling) {
+      await Product.findByIdAndUpdate(productId, {
+        isBestSelling: true,
+        bestSellingPromotedAt: new Date(),
+      });
+      console.log("[restaurant] Product promoted to best-selling:", productId);
+    }
+
+    return product;
+  } catch (error) {
+    console.error("[restaurant] Error in incrementProductOrderCount:", error);
+    throw error;
+  }
+};
+
+/**
+ * Check and demote best-selling products if 24 hours have passed
+ * @returns {Promise<Object>} Result of update operation
+ */
+exports.checkProductBestSellingExpiration = async () => {
+  try {
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const demotedProducts = await Product.updateMany(
+      {
+        isBestSelling: true,
+        bestSellingPromotedAt: { $lt: twentyFourHoursAgo },
+      },
+      {
+        isBestSelling: false,
+        bestSellingPromotedAt: null,
+      }
+    );
+
+    if (demotedProducts.modifiedCount > 0) {
+      console.log(
+        "[restaurant] Demoted",
+        demotedProducts.modifiedCount,
+        "products from best-selling"
+      );
+    }
+
+    return demotedProducts;
+  } catch (error) {
+    console.error("[restaurant] Error in checkProductBestSellingExpiration:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get products by branch with inventory info
+ * @param {ObjectId} branchId - ID of the branch
+ * @param {Object} filters - Additional filters
+ * @returns {Promise<Array>} Array of products with branch inventory
+ */
+exports.getProductsByBranch = async (branchId, filters = {}) => {
+  try {
+    const query = { ...filters };
+    const products = await Product.find(query);
+
+    return products.map((product) => {
+      const productObj = product.toObject();
+      const branchInv = product.branchInventory.find(
+        (inv) => inv.branchId.toString() === branchId.toString()
+      );
+      productObj.branchQuantity = branchInv ? branchInv.quantity : 0;
+      productObj.isOutOfStock = productObj.branchQuantity === 0;
+      return productObj;
+    });
+  } catch (error) {
+    console.error("[restaurant] Error in getProductsByBranch:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get best-selling products
+ * @returns {Promise<Array>} Array of best-selling products
+ */
+exports.getBestSellingProducts = async () => {
+  try {
+    return await Product.find({ isBestSelling: true }).sort({ totalOrdersCompleted: -1 });
+  } catch (error) {
+    console.error("[restaurant] Error in getBestSellingProducts:", error);
     throw error;
   }
 };

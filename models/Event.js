@@ -15,6 +15,8 @@ const eventSchema = new mongoose.Schema({
   branches: [{ type: mongoose.Schema.Types.ObjectId, ref: "Branch" }],
   // Danh sach mon an ap dung giam gia (tuy chon, neu rong = ap dung tat ca mon)
   dishes: [{ type: mongoose.Schema.Types.ObjectId, ref: "Dish" }],
+  // Danh sach san pham ap dung giam gia (tuy chon, neu rong = ap dung tat ca san pham)
+  products: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
   startDate: Date,
   endDate: Date,
   createdAt: { type: Date, default: Date.now },

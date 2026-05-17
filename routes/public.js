@@ -1,6 +1,7 @@
 const express = require("express")
 const router = express.Router()
 const Dish = require("../models/Dish")
+const Product = require("../models/Product")
 const Branch = require("../models/Branch")
 const Event = require("../models/Event")
 const Blog = require("../models/Blog")
@@ -24,6 +25,12 @@ router.get("/", async (req, res) => {
     const dishes = await Dish.find({ quantity: { $gt: 0 } })
       .sort({ isBestSelling: -1, createdAt: -1 })
       .limit(6)
+    
+    // Get products (show all, even with quantity 0), prioritize best-selling
+    const products = await Product.find()
+      .sort({ isBestSelling: -1, createdAt: -1 })
+      .limit(6)
+    
     const events = await Event.find().limit(3)
 
     // Get branches with active events
@@ -40,7 +47,8 @@ router.get("/", async (req, res) => {
     }
 
     res.render("public/home/index", { 
-    dishes, 
+    dishes,
+    products,
     events, 
     branches, 
     title: "La Maison - Fine Dining Restaurant | Trang Chu",
@@ -380,6 +388,38 @@ router.post("/order-review/:id", async (req, res) => {
     }
 
     res.redirect(`/order-review/${order._id}?success=rated`)
+  } catch (error) {
+    res.status(500).render("error", { error: error.message, layout: false })
+  }
+})
+
+// Product detail
+router.get("/product/:id", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id)
+    if (!product) return res.status(404).render("404", { layout: false })
+    res.render("public/products/detail", { product, title: product.name })
+  } catch (error) {
+    res.status(500).render("error", { error: error.message, layout: false })
+  }
+})
+
+// Products page
+router.get("/products", async (req, res) => {
+  try {
+    const productType = req.query.type || "all"
+    const search = req.query.search || ""
+
+    const query = {}
+    if (productType !== "all") {
+      query.productType = productType
+    }
+    if (search) {
+      query.$or = [{ name: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }]
+    }
+
+    const products = await Product.find(query).sort({ isBestSelling: -1, createdAt: -1 })
+    res.render("public/products/index", { products, productType, search, title: "San Pham" })
   } catch (error) {
     res.status(500).render("error", { error: error.message, layout: false })
   }

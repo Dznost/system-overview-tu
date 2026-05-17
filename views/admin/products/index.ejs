@@ -1,0 +1,139 @@
+<section class="admin-section">
+    <div class="container">
+        <div class="section-header">
+            <h1>Quan Ly San Pham</h1>
+            <a href="/admin/products/new" class="btn btn-primary">Them San Pham Moi</a>
+        </div>
+
+        <% if (typeof success !== 'undefined' && success) { %>
+            <div class="alert alert-success"><%= success %></div>
+        <% } %>
+
+        <% if (products && products.length > 0) { %>
+            <div class="admin-card">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Hinh Anh</th>
+                            <th>Ten</th>
+                            <th>Mo Ta</th>
+                            <th>Gia</th>
+                            <th>Loai</th>
+                            <th>Giam Gia</th>
+                            <th>So Luong</th>
+                            <th>Trang Thai</th>
+                            <th>Dat Hang</th>
+                            <th>Hanh Dong</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% products.forEach(product => { %>
+                            <tr>
+                                <td>
+                                    <img src="<%= product.image %>" alt="<%= product.name %>" 
+                                         style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;"
+                                         onerror="this.src='https://images.unsplash.com/photo-1572521886200-c4e2a1ad4c0e?w=60&h=60&fit=crop'">
+                                </td>
+                                <td><strong><%= product.name %></strong></td>
+                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    <%= product.description %>
+                                </td>
+                                <td>
+                                    <% const eventDiscount = product.event ? product.event.discount : 0; %>
+                                    <% const finalDiscount = eventDiscount || product.discount; %>
+                                    <% if (finalDiscount > 0) { %>
+                                        <div>
+                                            <span style="text-decoration: line-through; color: #999; font-size: 0.85rem;">
+                                                <%= product.price.toLocaleString('vi-VN') %>đ
+                                            </span>
+                                            <br>
+                                            <strong style="color: var(--accent);">
+                                                <%= (product.price * (1 - finalDiscount / 100)).toLocaleString('vi-VN') %>đ
+                                            </strong>
+                                        </div>
+                                    <% } else { %>
+                                        <strong><%= product.price.toLocaleString('vi-VN') %>đ</strong>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <span class="product-type-badge" style="background: #e0e7ff; color: #3730a3;">
+                                        <%= product.productType %>
+                                    </span>
+                                </td>
+                                <td>
+                                    <% if (product.event) { %>
+                                        <span class="discount-badge" style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);">
+                                            <%= product.event.discount %>% (<%= product.event.title %>)
+                                        </span>
+                                    <% } else if (product.discount > 0) { %>
+                                        <span class="discount-badge"><%= product.discount %>%</span>
+                                    <% } else { %>
+                                        <span style="color: #999;">-</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% const quantity = product.quantity || 0; %>
+                                    <span style="font-weight: 600; <%= quantity === 0 ? 'color: #dc2626;' : quantity < 10 ? 'color: #f59e0b;' : 'color: #16a34a;' %>">
+                                        <%= quantity %> <span style="color: #6b7280; font-size: 0.85rem;">phan</span>
+                                    </span>
+                                </td>
+                                <td>
+                                    <% if (quantity === 0) { %>
+                                        <span class="status-badge" style="background: #fee2e2; color: #991b1b;">Chay hang</span>
+                                    <% } else if (product.isBestSelling) { %>
+                                        <span class="status-badge" style="background: #fef3c7; color: #92400e;">Ban chay</span>
+                                    <% } else { %>
+                                        <span class="status-badge" style="background: #dbeafe; color: #1e40af;">Binh thuong</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% const orders = product.totalOrdersCompleted || 0; %>
+                                    <span title="Tong so lan dat hang">
+                                        <strong style="color: #8B6F47;"><%= orders %></strong>
+                                        <span style="color: #6b7280; font-size: 0.85rem;">lan</span>
+                                    </span>
+                                </td>
+                                <td class="action-buttons">
+                                    <a href="/admin/products/<%= product._id %>/edit" class="btn btn-small btn-primary">Sua</a>
+                                    <a href="/admin/products/<%= product._id %>/delete" class="btn btn-small btn-danger" onclick="return confirm('Ban chac chan muon xoa?')">Xoa</a>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div class="empty-message">
+                <p>Chua co san pham nao. <a href="/admin/products/new" class="btn btn-primary">Them ngay</a></p>
+            </div>
+        <% } %>
+    </div>
+</section>
+
+<style>
+    
+    .product-type-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    
+    .discount-badge {
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    
+    .status-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+</style>

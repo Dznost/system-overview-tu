@@ -58,6 +58,7 @@ app.use("/reception", require("./routes/reception"))
 
 app.use("/admin", require("./routes/admin/index"))
 app.use("/admin/dishes", require("./routes/admin/dishes"))
+app.use("/admin/products", require("./routes/admin/products"))
 app.use("/admin/branches", require("./routes/admin/branches"))
 app.use("/admin/events", require("./routes/admin/events"))
 app.use("/admin/blogs", require("./routes/admin/blog")) // Changed from /admin/blog to /admin/blogs for consistency
