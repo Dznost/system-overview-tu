@@ -171,7 +171,7 @@ exports.updateOrderStatus = async (req, res) => {
 // Complete COD payment
 exports.completeCODPayment = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate("items.dishId");
+    const order = await Order.findById(req.params.id).populate("items.dishId").populate("items.productId");
     
     if (order && order.paymentTiming === "cod" && order.paymentStatus !== "paid") {
       const payment = new Payment({
@@ -194,10 +194,12 @@ exports.completeCODPayment = async (req, res) => {
       order.paidAt = new Date();
       await order.save();
       
-      // Increment order count for each dish in the completed order
+      // Increment order count for each item in the completed order
       for (const item of order.items) {
-        if (item.dishId) {
+        if (item.itemType === "dish" && item.dishId) {
           await inventoryManager.incrementOrderCount(item.dishId._id);
+        } else if (item.itemType === "product" && item.productId) {
+          await inventoryManager.incrementProductOrderCount(item.productId._id);
         }
       }
       

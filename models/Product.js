@@ -10,19 +10,18 @@ const productSchema = new mongoose.Schema({
   available: { type: Boolean, default: true },
   event: { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
   
-  // Inventory management - global quantity
+  // Inventory management - global quantity only (no branch-specific for products)
   quantity: { type: Number, default: 0 },
-  
-  // Branch-level inventory: [{ branchId, quantity }]
-  branchInventory: [{
-    branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
-    quantity: { type: Number, default: 0 }
-  }],
   
   // Order history tracking
   totalOrdersCompleted: { type: Number, default: 0 },
   
-  // Best-selling tracking
+  // HOT product tracking - manual and automatic
+  // isHot: Can be set manually by admin OR automatically when totalOrdersCompleted >= 100
+  isHot: { type: Boolean, default: false },
+  isAutoHot: { type: Boolean, default: false }, // Flag to indicate auto-promotion (vs manual)
+  
+  // Best-selling tracking (same 24-hour expiration as dishes)
   isBestSelling: { type: Boolean, default: false },
   bestSellingPromotedAt: { type: Date, default: null },
   

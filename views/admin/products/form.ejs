@@ -269,29 +269,7 @@
                                 </div>
                             <% } %>
 
-                            <% if (branches && branches.length > 0) { %>
-                                <div class="field-group">
-                                    <label class="field-label">Chi Nhanh Cung Cap San Pham</label>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                        <% branches.forEach(branch => { %>
-                                            <% const isBranchSelected = product && product.branchInventory && product.branchInventory.some(inv => inv.branchId && inv.branchId._id && inv.branchId._id.toString() === branch._id.toString()); %>
-                                            <div style="display: flex; align-items: center; gap: 8px;">
-                                                <input 
-                                                    type="checkbox" 
-                                                    id="branch_<%= branch._id %>" 
-                                                    name="branchIds" 
-                                                    value="<%= branch._id %>"
-                                                    <%= isBranchSelected ? 'checked' : '' %>
-                                                    style="width: 18px; height: 18px; cursor: pointer;">
-                                                <label for="branch_<%= branch._id %>" style="cursor: pointer; margin: 0; font-size: 0.9rem;">
-                                                    <%= branch.name %>
-                                                </label>
-                                            </div>
-                                        <% }); %>
-                                    </div>
-                                    <span class="field-hint">Chon chi nhanh co cung cap san pham nay</span>
-                                </div>
-                            <% } %>
+                            <!-- Products do not have branch-specific inventory, they are global -->
                         </div>
                     </div>
 
@@ -305,6 +283,19 @@
                                 <div class="status-dot <%= product ? 'active' : 'new' %>"></div>
                                 <span><%= product ? 'Dang hoat dong' : 'San pham moi' %></span>
                             </div>
+                            <div class="field-group">
+                                <label class="field-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                                    <input 
+                                        type="checkbox" 
+                                        id="isHot" 
+                                        name="isHot" 
+                                        <%= product && product.isHot ? 'checked' : '' %>
+                                        style="width: 20px; height: 20px; cursor: pointer;">
+                                    <span style="margin: 0; cursor: pointer;">Danh Dau San Pham HOT</span>
+                                </label>
+                                <span class="field-hint">Khi danh dau, san pham se duoc hien thi trong phan HOT. San pham cung tu dong tro thanh HOT khi duoc dat >100 lan</span>
+                            </div>
+
                             <% if (product) { %>
                                 <div class="meta-info">
                                     <div class="meta-item">
@@ -315,6 +306,20 @@
                                         <span class="meta-label">Cap nhat:</span>
                                         <span class="meta-value"><%= product.updatedAt ? new Date(product.updatedAt).toLocaleDateString('vi-VN') : 'N/A' %></span>
                                     </div>
+                                    <% if (product.isHot) { %>
+                                        <div class="meta-item">
+                                            <span class="meta-label">Trang Thai HOT:</span>
+                                            <span class="meta-value" style="color: #dc2626; font-weight: 600;">
+                                                Dung (<%= product.isAutoHot ? 'Tu dong' : 'Thu cong' %>)
+                                            </span>
+                                        </div>
+                                    <% } %>
+                                    <% if (product.totalOrdersCompleted) { %>
+                                        <div class="meta-item">
+                                            <span class="meta-label">Tong Dat Hang:</span>
+                                            <span class="meta-value"><%= product.totalOrdersCompleted %> lan</span>
+                                        </div>
+                                    <% } %>
                                 </div>
                             <% } %>
                         </div>

@@ -26,9 +26,14 @@ router.get("/", async (req, res) => {
       .sort({ isBestSelling: -1, createdAt: -1 })
       .limit(6)
     
-    // Get products (show all, even with quantity 0), prioritize best-selling
-    const products = await Product.find()
+    // Get regular products (show all, even with quantity 0), prioritize best-selling
+    const products = await Product.find({ isHot: false })
       .sort({ isBestSelling: -1, createdAt: -1 })
+      .limit(6)
+    
+    // Get HOT products (only show those marked as HOT)
+    const hotProducts = await Product.find({ isHot: true })
+      .sort({ createdAt: -1 })
       .limit(6)
     
     const events = await Event.find().limit(3)
@@ -49,6 +54,7 @@ router.get("/", async (req, res) => {
     res.render("public/home/index", { 
     dishes,
     products,
+    hotProducts,
     events, 
     branches, 
     title: "La Maison - Fine Dining Restaurant | Trang Chu",
@@ -418,7 +424,7 @@ router.get("/products", async (req, res) => {
       query.$or = [{ name: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }]
     }
 
-    const products = await Product.find(query).sort({ isBestSelling: -1, createdAt: -1 })
+    const products = await Product.find(query).sort({ isHot: -1, isBestSelling: -1, createdAt: -1 })
     res.render("public/products/index", { products, productType, search, title: "San Pham" })
   } catch (error) {
     res.status(500).render("error", { error: error.message, layout: false })

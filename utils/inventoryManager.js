@@ -308,6 +308,15 @@ exports.incrementProductOrderCount = async (productId) => {
       { new: true }
     );
 
+    // Check if should be promoted to HOT (>= 100 completed orders and not already HOT)
+    if (product.totalOrdersCompleted >= 100 && !product.isHot) {
+      await Product.findByIdAndUpdate(productId, {
+        isHot: true,
+        isAutoHot: true, // Flag as auto-promoted
+      });
+      console.log("[restaurant] Product auto-promoted to HOT:", productId);
+    }
+
     // Check if should be promoted to best-selling (>= 20 completed orders)
     if (product.totalOrdersCompleted >= 20 && !product.isBestSelling) {
       await Product.findByIdAndUpdate(productId, {

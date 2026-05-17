@@ -22,6 +22,7 @@
                             <th>Giam Gia</th>
                             <th>So Luong</th>
                             <th>Trang Thai</th>
+                            <th>HOT</th>
                             <th>Dat Hang</th>
                             <th>Hanh Dong</th>
                         </tr>
@@ -87,10 +88,25 @@
                                     <% } %>
                                 </td>
                                 <td>
+                                    <% if (product.isHot) { %>
+                                        <span class="hot-badge" style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); color: white; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85rem;">
+                                            HOT
+                                            <% if (product.isAutoHot) { %>
+                                                <span style="font-size: 0.75rem;">(Auto)</span>
+                                            <% } %>
+                                        </span>
+                                    <% } else { %>
+                                        <span style="color: #999; font-size: 0.85rem;">-</span>
+                                    <% } %>
+                                </td>
+                                <td>
                                     <% const orders = product.totalOrdersCompleted || 0; %>
                                     <span title="Tong so lan dat hang">
                                         <strong style="color: #8B6F47;"><%= orders %></strong>
                                         <span style="color: #6b7280; font-size: 0.85rem;">lan</span>
+                                        <% if (orders >= 100) { %>
+                                            <span style="margin-left: 4px; color: #dc2626; font-weight: 600;">⭐</span>
+                                        <% } %>
                                     </span>
                                 </td>
                                 <td class="action-buttons">
