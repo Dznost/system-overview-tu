@@ -20,7 +20,10 @@ router.use((req, res, next) => {
 // Home
 router.get("/", async (req, res) => {
   try {
-    const dishes = await Dish.find().limit(6)
+    // Get dishes with quantity > 0 (in stock), prioritize best-selling
+    const dishes = await Dish.find({ quantity: { $gt: 0 } })
+      .sort({ isBestSelling: -1, createdAt: -1 })
+      .limit(6)
     const events = await Event.find().limit(3)
 
     // Get branches with active events
@@ -54,7 +57,7 @@ router.get("/menu", async (req, res) => {
     const category = req.query.category || "all"
     const search = req.query.search || ""
 
-    const query = {}
+    const query = { quantity: { $gt: 0 } } // Only show dishes with quantity > 0
     if (category !== "all") {
       query.category = category
     }
@@ -62,7 +65,7 @@ router.get("/menu", async (req, res) => {
       query.$or = [{ name: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }]
     }
 
-    const dishes = await Dish.find(query)
+    const dishes = await Dish.find(query).sort({ isBestSelling: -1, createdAt: -1 })
     res.render("public/menu/index", { dishes, category, search, title: "Thực Đơn" })
   } catch (error) {
     res.status(500).render("error", { error: error.message, layout: false })
@@ -113,8 +116,12 @@ router.get("/branch/:id", async (req, res) => {
       endDate: { $gte: now },
     })
 
+    // Filter dishes to only show those available at this branch with quantity > 0
+    const inventoryManager = require("../utils/inventoryManager")
+    const availableDishes = await inventoryManager.getDishesByBranch(branch._id, { quantity: { $gt: 0 } })
+
     res.render("public/branches/detail", {
-      branch,
+      branch: { ...branch.toObject(), dishes: availableDishes },
       events,
       title: branch.name,
     })

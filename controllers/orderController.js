@@ -2,6 +2,8 @@ const Order = require("../models/Order");
 const Payment = require("../models/Payment");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
+const Dish = require("../models/Dish");
+const inventoryManager = require("../utils/inventoryManager");
 
 // Get all orders
 exports.getOrders = async (req, res) => {
@@ -169,7 +171,7 @@ exports.updateOrderStatus = async (req, res) => {
 // Complete COD payment
 exports.completeCODPayment = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate("items.dishId");
     
     if (order && order.paymentTiming === "cod" && order.paymentStatus !== "paid") {
       const payment = new Payment({
@@ -191,6 +193,13 @@ exports.completeCODPayment = async (req, res) => {
       order.status = "completed";
       order.paidAt = new Date();
       await order.save();
+      
+      // Increment order count for each dish in the completed order
+      for (const item of order.items) {
+        if (item.dishId) {
+          await inventoryManager.incrementOrderCount(item.dishId._id);
+        }
+      }
       
       console.log("[restaurant] COD payment completed for order:", order._id);
     }
@@ -322,6 +331,41 @@ exports.autoAssignToStaff = async (req, res) => {
     res.redirect(`/admin/orders/${req.params.id}?success=Da tu dong gan cho nhan vien ${selectedStaff.name}`);
   } catch (error) {
     console.error("[restaurant] Error in autoAssignToStaff:", error);
+    res.redirect("/admin/orders");
+  }
+};
+
+// Cancel order and restore inventory
+exports.cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate("items.dishId");
+    
+    if (!order) {
+      return res.redirect("/admin/orders");
+    }
+    
+    if (order.status === "cancelled") {
+      return res.redirect(`/admin/orders/${req.params.id}?success=Don hang da huy truoc do`);
+    }
+    
+    // Restore inventory for all items in the order
+    for (const item of order.items) {
+      if (item.dishId) {
+        await inventoryManager.incrementQuantity(
+          item.dishId._id,
+          order.branchId,
+          item.quantity
+        );
+      }
+    }
+    
+    order.status = "cancelled";
+    await order.save();
+    
+    console.log("[restaurant] Order cancelled and inventory restored:", order._id);
+    res.redirect(`/admin/orders/${req.params.id}?success=Don hang da huy va hang ton kho da phuc hoi`);
+  } catch (error) {
+    console.error("[restaurant] Error in cancelOrder:", error);
     res.redirect("/admin/orders");
   }
 };

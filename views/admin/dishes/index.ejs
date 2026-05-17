@@ -20,6 +20,9 @@
                             <th>Gia</th>
                             <th>Danh Muc</th>
                             <th>Giam Gia</th>
+                            <th>So Luong</th>
+                            <th>Trang Thai</th>
+                            <th>Dat Hang</th>
                             <th>Hanh Dong</th>
                         </tr>
                     </thead>
@@ -75,6 +78,28 @@
                                         <span style="color: #999;">-</span>
                                     <% } %>
                                 </td>
+                                <td>
+                                    <% const quantity = dish.quantity || 0; %>
+                                    <span style="font-weight: 600; <%= quantity === 0 ? 'color: #dc2626;' : quantity < 10 ? 'color: #f59e0b;' : 'color: #16a34a;' %>">
+                                        <%= quantity %> <span style="color: #6b7280; font-size: 0.85rem;">phan</span>
+                                    </span>
+                                </td>
+                                <td>
+                                    <% if (quantity === 0) { %>
+                                        <span class="status-badge" style="background: #fee2e2; color: #991b1b;">Het hang</span>
+                                    <% } else if (dish.isBestSelling) { %>
+                                        <span class="status-badge" style="background: #fef3c7; color: #92400e;">Ban chay</span>
+                                    <% } else { %>
+                                        <span class="status-badge" style="background: #dbeafe; color: #1e40af;">Binh thuong</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% const orders = dish.totalOrdersCompleted || 0; %>
+                                    <span title="Tong so lan dat hang">
+                                        <strong style="color: #8B6F47;"><%= orders %></strong>
+                                        <span style="color: #6b7280; font-size: 0.85rem;">lan</span>
+                                    </span>
+                                </td>
                                 <td class="action-buttons">
                                     <a href="/admin/dishes/<%= dish._id %>/edit" class="btn btn-small btn-primary">Sua</a>
                                     <a href="/admin/dishes/<%= dish._id %>/delete" class="btn btn-small btn-danger" onclick="return confirm('Ban chac chan muon xoa?')">Xoa</a>
@@ -109,5 +134,13 @@
         border-radius: 15px;
         font-weight: bold;
         font-size: 0.9rem;
+    }
+    
+    .status-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
     }
 </style>

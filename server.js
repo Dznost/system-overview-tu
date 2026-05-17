@@ -4,11 +4,15 @@ const session = require("express-session")
 const expressLayouts = require("express-ejs-layouts")
 const path = require("path")
 const connectDB = require("./config/database")
+const { initializeJobs } = require("./jobs/bestSellingJob")
 
 const app = express()
 
 // Connect to MongoDB
 connectDB()
+
+// Initialize background jobs
+initializeJobs()
 
 // Middleware
 app.use(express.static(path.join(__dirname, "public")))

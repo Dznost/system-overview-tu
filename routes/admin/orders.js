@@ -18,5 +18,6 @@ router.post("/:id/assign-shipper", checkAdmin, orderController.assignToShipper);
 router.post("/:id/auto-assign-shipper", checkAdmin, orderController.autoAssignToShipper);
 router.post("/:id/assign-staff", checkAdmin, orderController.assignToStaff);
 router.post("/:id/auto-assign-staff", checkAdmin, orderController.autoAssignToStaff);
+router.post("/:id/cancel", checkAdmin, orderController.cancelOrder);
 
 module.exports = router;
