@@ -310,9 +310,24 @@ router.post("/reservation", checkAuth, async (req, res) => {
 })
 
 // Cart
-router.get("/cart", checkAuth, (req, res) => {
-  const cart = req.session.cart || []
-  res.render("user/cart/index", { cart })
+router.get("/cart", checkAuth, async (req, res) => {
+  try {
+    const cart = req.session.cart || []
+    
+    // Fetch available quantities for each item
+    for (const item of cart) {
+      const dish = await Dish.findById(item.dishId)
+      if (dish) {
+        item.availableQuantity = dish.quantity || 0
+        item.image = dish.image
+      }
+    }
+    
+    res.render("user/cart/index", { cart })
+  } catch (error) {
+    console.error("[restaurant] Error in cart route:", error)
+    res.render("user/cart/index", { cart: req.session.cart || [] })
+  }
 })
 
 // Add to cart
@@ -321,24 +336,41 @@ router.post("/cart/add", checkAuth, async (req, res) => {
     const { dishId, quantity } = req.body
     const dish = await Dish.findById(dishId)
 
+    if (!dish) {
+      return res.redirect("/menu?error=Khong tim thay mon an nay")
+    }
+
+    const requestedQuantity = Number.parseInt(quantity)
+    const availableQuantity = dish.quantity || 0
+
+    // Check if requested quantity exceeds available quantity
+    if (requestedQuantity > availableQuantity) {
+      return res.redirect(`/menu?error=So luong yeu cau (${requestedQuantity}) vuot qua hang co san (${availableQuantity})`)
+    }
+
     if (!req.session.cart) req.session.cart = []
 
     const existingItem = req.session.cart.find((item) => item.dishId === dishId)
     if (existingItem) {
-      existingItem.quantity += Number.parseInt(quantity)
+      const newQuantity = existingItem.quantity + requestedQuantity
+      if (newQuantity > availableQuantity) {
+        return res.redirect(`/menu?error=So luong yeu cau (${newQuantity}) vuot qua hang co san (${availableQuantity})`)
+      }
+      existingItem.quantity = newQuantity
     } else {
       req.session.cart.push({
         dishId,
         name: dish.name,
         price: dish.price,
         discount: dish.discount || 0,
-        quantity: Number.parseInt(quantity),
+        quantity: requestedQuantity,
       })
     }
 
     res.redirect("/user/cart")
   } catch (error) {
-    res.status(500).render("error", { error: error.message, layout: false })
+    console.error("[restaurant] Error in add to cart:", error)
+    res.redirect("/menu?error=Co loi khi them mon an vao gio hang")
   }
 })
 
@@ -364,11 +396,19 @@ router.get("/checkout", checkAuth, async (req, res) => {
     for (const item of cart) {
       const dish = await Dish.findById(item.dishId)
       if (dish) {
+        const availableQuantity = dish.quantity || 0
+        
+        // Check if ordered quantity exceeds available
+        if (item.quantity > availableQuantity) {
+          return res.redirect(`/user/cart?error=Mon ${dish.name}: so luong yeu cau (${item.quantity}) vuot qua hang co san (${availableQuantity})`)
+        }
+        
         const itemTotal = dish.price * item.quantity
         const itemDiscount = (dish.discount / 100) * itemTotal
         total += itemTotal
         totalDiscount += itemDiscount
         item.discount = dish.discount
+        item.availableQuantity = availableQuantity
       }
     }
 
@@ -383,6 +423,7 @@ router.get("/checkout", checkAuth, async (req, res) => {
       isCODRestricted,
     })
   } catch (error) {
+    console.error("[restaurant] Error in checkout:", error)
     res.status(500).render("error", { error: error.message, layout: false })
   }
 })
@@ -418,6 +459,7 @@ router.post("/order", checkAuth, async (req, res) => {
 
         items.push({
           dishId: dish._id,
+          itemType: "dish",
           name: dish.name,
           quantity: item.quantity,
           price: dish.price,

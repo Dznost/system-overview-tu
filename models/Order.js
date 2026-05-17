@@ -6,7 +6,7 @@ const orderSchema = new mongoose.Schema({
     {
       dishId: { type: mongoose.Schema.Types.ObjectId, ref: "Dish" },
       productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-      itemType: { type: String, enum: ["dish", "product"], required: true },
+      itemType: { type: String, enum: ["dish", "product"], default: "dish" },
       name: String,
       quantity: Number,
       price: Number,

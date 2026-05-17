@@ -363,6 +363,7 @@ exports.createOrder = async (req, res) => {
         const discountedPrice = dish.discount > 0 ? dish.price * (1 - dish.discount / 100) : dish.price
         orderItems.push({
           dishId: dish._id,
+          itemType: "dish",
           name: dish.name,
           quantity: qty,
           price: discountedPrice,
