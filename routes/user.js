@@ -333,50 +333,101 @@ router.get("/cart", checkAuth, async (req, res) => {
 // Add to cart
 router.post("/cart/add", checkAuth, async (req, res) => {
   try {
-    const { dishId, quantity } = req.body
-    const dish = await Dish.findById(dishId)
-
-    if (!dish) {
-      return res.redirect("/menu?error=Khong tim thay mon an nay")
-    }
-
-    const requestedQuantity = Number.parseInt(quantity)
-    const availableQuantity = dish.quantity || 0
-
-    // Check if requested quantity exceeds available quantity
-    if (requestedQuantity > availableQuantity) {
-      return res.redirect(`/menu?error=So luong yeu cau (${requestedQuantity}) vuot qua hang co san (${availableQuantity})`)
-    }
+    const { dishId, productId, quantity } = req.body
 
     if (!req.session.cart) req.session.cart = []
 
-    const existingItem = req.session.cart.find((item) => item.dishId === dishId)
-    if (existingItem) {
-      const newQuantity = existingItem.quantity + requestedQuantity
-      if (newQuantity > availableQuantity) {
-        return res.redirect(`/menu?error=So luong yeu cau (${newQuantity}) vuot qua hang co san (${availableQuantity})`)
-      }
-      existingItem.quantity = newQuantity
-    } else {
-      req.session.cart.push({
-        dishId,
-        name: dish.name,
-        price: dish.price,
-        discount: dish.discount || 0,
-        quantity: requestedQuantity,
-      })
-    }
+    const requestedQuantity = Number.parseInt(quantity)
 
-    res.redirect("/user/cart")
+    // Handle dish
+    if (dishId) {
+      const dish = await Dish.findById(dishId)
+
+      if (!dish) {
+        return res.redirect("/menu?error=Khong tim thay mon an nay")
+      }
+
+      const availableQuantity = dish.quantity || 0
+
+      // Check if requested quantity exceeds available quantity
+      if (requestedQuantity > availableQuantity) {
+        return res.redirect(`/menu?error=So luong yeu cau (${requestedQuantity}) vuot qua hang co san (${availableQuantity})`)
+      }
+
+      const existingItem = req.session.cart.find((item) => item.dishId === dishId)
+      if (existingItem) {
+        const newQuantity = existingItem.quantity + requestedQuantity
+        if (newQuantity > availableQuantity) {
+          return res.redirect(`/menu?error=So luong yeu cau (${newQuantity}) vuot qua hang co san (${availableQuantity})`)
+        }
+        existingItem.quantity = newQuantity
+      } else {
+        req.session.cart.push({
+          dishId,
+          itemType: "dish",
+          name: dish.name,
+          price: dish.price,
+          discount: dish.discount || 0,
+          quantity: requestedQuantity,
+        })
+      }
+
+      res.redirect("/user/cart")
+    }
+    // Handle product
+    else if (productId) {
+      const product = await Product.findById(productId)
+
+      if (!product) {
+        return res.redirect("/products?error=Khong tim thay san pham nay")
+      }
+
+      const availableQuantity = product.quantity || 0
+
+      // Check if product is out of stock (HOT products can't be ordered if qty=0)
+      if (availableQuantity === 0) {
+        return res.redirect(`/products?error=San pham ${product.name} da het hang`)
+      }
+
+      // Check if requested quantity exceeds available quantity
+      if (requestedQuantity > availableQuantity) {
+        return res.redirect(`/products?error=So luong yeu cau (${requestedQuantity}) vuot qua hang co san (${availableQuantity})`)
+      }
+
+      const existingItem = req.session.cart.find((item) => item.productId === productId)
+      if (existingItem) {
+        const newQuantity = existingItem.quantity + requestedQuantity
+        if (newQuantity > availableQuantity) {
+          return res.redirect(`/products?error=So luong yeu cau (${newQuantity}) vuot qua hang co san (${availableQuantity})`)
+        }
+        existingItem.quantity = newQuantity
+      } else {
+        req.session.cart.push({
+          productId,
+          itemType: "product",
+          name: product.name,
+          price: product.price,
+          discount: product.discount || 0,
+          quantity: requestedQuantity,
+        })
+      }
+
+      res.redirect("/user/cart")
+    } else {
+      return res.redirect("/menu?error=Yeu cau khong hop le")
+    }
   } catch (error) {
     console.error("[restaurant] Error in add to cart:", error)
-    res.redirect("/menu?error=Co loi khi them mon an vao gio hang")
+    res.redirect("/menu?error=Co loi khi them san pham vao gio hang")
   }
 })
 
-router.get("/cart/remove/:dishId", checkAuth, (req, res) => {
+router.get("/cart/remove/:itemId", checkAuth, (req, res) => {
   if (req.session.cart) {
-    req.session.cart = req.session.cart.filter((item) => item.dishId !== req.params.dishId)
+    // Remove item by either dishId or productId
+    req.session.cart = req.session.cart.filter((item) => 
+      item.dishId !== req.params.itemId && item.productId !== req.params.itemId
+    )
   }
   res.redirect("/user/cart")
 })
@@ -394,21 +445,48 @@ router.get("/checkout", checkAuth, async (req, res) => {
     let totalDiscount = 0
 
     for (const item of cart) {
-      const dish = await Dish.findById(item.dishId)
-      if (dish) {
-        const availableQuantity = dish.quantity || 0
-        
-        // Check if ordered quantity exceeds available
-        if (item.quantity > availableQuantity) {
-          return res.redirect(`/user/cart?error=Mon ${dish.name}: so luong yeu cau (${item.quantity}) vuot qua hang co san (${availableQuantity})`)
+      // Handle dish
+      if (item.dishId) {
+        const dish = await Dish.findById(item.dishId)
+        if (dish) {
+          const availableQuantity = dish.quantity || 0
+          
+          // Check if ordered quantity exceeds available
+          if (item.quantity > availableQuantity) {
+            return res.redirect(`/user/cart?error=Mon ${dish.name}: so luong yeu cau (${item.quantity}) vuot qua hang co san (${availableQuantity})`)
+          }
+          
+          const itemTotal = dish.price * item.quantity
+          const itemDiscount = (dish.discount / 100) * itemTotal
+          total += itemTotal
+          totalDiscount += itemDiscount
+          item.discount = dish.discount
+          item.availableQuantity = availableQuantity
         }
-        
-        const itemTotal = dish.price * item.quantity
-        const itemDiscount = (dish.discount / 100) * itemTotal
-        total += itemTotal
-        totalDiscount += itemDiscount
-        item.discount = dish.discount
-        item.availableQuantity = availableQuantity
+      }
+      // Handle product
+      else if (item.productId) {
+        const product = await Product.findById(item.productId)
+        if (product) {
+          const availableQuantity = product.quantity || 0
+          
+          // Check if product is out of stock
+          if (availableQuantity === 0) {
+            return res.redirect(`/user/cart?error=San pham ${product.name}: da het hang`)
+          }
+          
+          // Check if ordered quantity exceeds available
+          if (item.quantity > availableQuantity) {
+            return res.redirect(`/user/cart?error=San pham ${product.name}: so luong yeu cau (${item.quantity}) vuot qua hang co san (${availableQuantity})`)
+          }
+          
+          const itemTotal = product.price * item.quantity
+          const itemDiscount = (product.discount / 100) * itemTotal
+          total += itemTotal
+          totalDiscount += itemDiscount
+          item.discount = product.discount
+          item.availableQuantity = availableQuantity
+        }
       }
     }
 
@@ -450,21 +528,43 @@ router.post("/order", checkAuth, async (req, res) => {
     const items = []
 
     for (const item of cart) {
-      const dish = await Dish.findById(item.dishId)
-      if (dish) {
-        const itemPrice = dish.price * item.quantity
-        const itemDiscount = (dish.discount / 100) * itemPrice
-        totalPrice += itemPrice
-        totalDiscount += itemDiscount
+      // Handle dish
+      if (item.dishId) {
+        const dish = await Dish.findById(item.dishId)
+        if (dish) {
+          const itemPrice = dish.price * item.quantity
+          const itemDiscount = (dish.discount / 100) * itemPrice
+          totalPrice += itemPrice
+          totalDiscount += itemDiscount
 
-        items.push({
-          dishId: dish._id,
-          itemType: "dish",
-          name: dish.name,
-          quantity: item.quantity,
-          price: dish.price,
-          discount: dish.discount,
-        })
+          items.push({
+            dishId: dish._id,
+            itemType: "dish",
+            name: dish.name,
+            quantity: item.quantity,
+            price: dish.price,
+            discount: dish.discount,
+          })
+        }
+      }
+      // Handle product
+      else if (item.productId) {
+        const product = await Product.findById(item.productId)
+        if (product) {
+          const itemPrice = product.price * item.quantity
+          const itemDiscount = (product.discount / 100) * itemPrice
+          totalPrice += itemPrice
+          totalDiscount += itemDiscount
+
+          items.push({
+            productId: product._id,
+            itemType: "product",
+            name: product.name,
+            quantity: item.quantity,
+            price: product.price,
+            discount: product.discount,
+          })
+        }
       }
     }
 
@@ -640,7 +740,7 @@ router.post("/payment/order/:orderId/confirm", checkAuth, async (req, res) => {
     console.log("[restaurant] Request body:", req.body)
 
     const { paymentMethod } = req.body
-    const order = await Order.findById(req.params.orderId)
+    const order = await Order.findById(req.params.orderId).populate("items.dishId").populate("items.productId")
 
     if (!order) {
       console.log("[restaurant] Order not found")
@@ -686,12 +786,23 @@ router.post("/payment/order/:orderId/confirm", checkAuth, async (req, res) => {
     console.log("[restaurant] Payment saved:", payment._id)
 
     // Update order status
-    order.status = "paid"
+    order.status = "completed"
     order.paymentStatus = "paid"
     order.paymentMethod = paymentMethod
     order.paidAt = new Date()
     await order.save()
     console.log("[restaurant] Order updated")
+
+    // Increment order count for each item in the completed order
+    const inventoryManager = require("../utils/inventoryManager");
+    for (const item of order.items) {
+      if (item.itemType === "dish" && item.dishId) {
+        await inventoryManager.incrementOrderCount(item.dishId._id);
+      } else if (item.itemType === "product" && item.productId) {
+        await inventoryManager.incrementProductOrderCount(item.productId._id);
+      }
+    }
+    console.log("[restaurant] Order counts incremented for all items")
 
     res.redirect("/user/profile?success=Thanh toán thành công!")
   } catch (error) {
