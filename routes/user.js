@@ -432,6 +432,56 @@ router.get("/cart/remove/:itemId", checkAuth, (req, res) => {
   res.redirect("/user/cart")
 })
 
+// Update cart item quantity
+router.post("/cart/update", checkAuth, async (req, res) => {
+  try {
+    const { dishId, productId, quantity } = req.body
+    const newQuantity = parseInt(quantity)
+
+    if (!req.session.cart || newQuantity < 1) {
+      return res.redirect("/user/cart?error=So luong khong hop le")
+    }
+
+    let cartItem = null
+    let availableQuantity = 0
+
+    // Find and validate item
+    if (dishId) {
+      cartItem = req.session.cart.find(item => item.dishId === dishId)
+      if (cartItem) {
+        const dish = await Dish.findById(dishId)
+        if (dish) {
+          availableQuantity = dish.quantity || 0
+        }
+      }
+    } else if (productId) {
+      cartItem = req.session.cart.find(item => item.productId === productId)
+      if (cartItem) {
+        const product = await Product.findById(productId)
+        if (product) {
+          availableQuantity = product.quantity || 0
+        }
+      }
+    }
+
+    if (!cartItem) {
+      return res.redirect("/user/cart?error=San pham khong tim thay")
+    }
+
+    // Validate quantity
+    if (newQuantity > availableQuantity) {
+      return res.redirect(`/user/cart?error=So luong yeu cau (${newQuantity}) vuot qua hang co san (${availableQuantity})`)
+    }
+
+    // Update quantity
+    cartItem.quantity = newQuantity
+    res.redirect("/user/cart")
+  } catch (error) {
+    console.error("[restaurant] Error updating cart:", error)
+    res.redirect("/user/cart?error=Co loi khi cap nhat gio hang")
+  }
+})
+
 // Checkout
 router.get("/checkout", checkAuth, async (req, res) => {
   try {

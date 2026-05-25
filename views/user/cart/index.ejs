@@ -78,14 +78,18 @@
                                 
                                 <div class="item-quantity">
                                     <form action="/user/cart/update" method="POST" class="quantity-form">
-                                        <input type="hidden" name="dishId" value="<%= item.dishId %>">
-                                        <button type="button" class="qty-btn minus" onclick="updateQuantity(this, -1)">
+                                        <% if (item.dishId) { %>
+                                            <input type="hidden" name="dishId" value="<%= item.dishId %>">
+                                        <% } else if (item.productId) { %>
+                                            <input type="hidden" name="productId" value="<%= item.productId %>">
+                                        <% } %>
+                                        <button type="button" class="qty-btn minus" onclick="decrementQuantity(this)">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <line x1="5" y1="12" x2="19" y2="12"/>
                                             </svg>
                                         </button>
                                         <input type="number" name="quantity" value="<%= item.quantity %>" min="1" max="<%= item.availableQuantity || 99 %>" class="qty-input" onchange="this.form.submit()">
-                                        <button type="button" class="qty-btn plus" onclick="updateQuantity(this, 1)">
+                                        <button type="button" class="qty-btn plus" onclick="incrementQuantity(this)">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <line x1="12" y1="5" x2="12" y2="19"/>
                                                 <line x1="5" y1="12" x2="19" y2="12"/>
@@ -860,15 +864,26 @@
 </style>
 
 <script>
-function updateQuantity(btn, change) {
+function incrementQuantity(btn) {
     const form = btn.closest('.quantity-form');
     const input = form.querySelector('.qty-input');
-    let value = parseInt(input.value) + change;
+    let value = parseInt(input.value) + 1;
+    const max = parseInt(input.max) || 99;
     
-    if (value < 1) value = 1;
-    if (value > 99) value = 99;
+    if (value <= max) {
+        input.value = value;
+        form.submit();
+    }
+}
+
+function decrementQuantity(btn) {
+    const form = btn.closest('.quantity-form');
+    const input = form.querySelector('.qty-input');
+    let value = parseInt(input.value) - 1;
     
-    input.value = value;
-    form.submit();
+    if (value >= 1) {
+        input.value = value;
+        form.submit();
+    }
 }
 </script>
