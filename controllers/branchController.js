@@ -1,5 +1,4 @@
 const Branch = require("../models/Branch")
-const Dish = require("../models/Dish")
 const User = require("../models/User")
 const Order = require("../models/Order")
 const Payment = require("../models/Payment")
@@ -8,7 +7,7 @@ const mongoose = require("mongoose")
 // Get all branches
 exports.getBranches = async (req, res) => {
   try {
-    const branches = await Branch.find().populate("dishes").sort({ createdAt: -1 })
+    const branches = await Branch.find().sort({ createdAt: -1 })
 
     // Enrich each branch with ALL employees (reception, staff, shipper), order stats, and revenue
     const enriched = await Promise.all(
@@ -98,11 +97,9 @@ exports.getBranches = async (req, res) => {
 // Get new branch form
 exports.getNewBranchForm = async (req, res) => {
   try {
-    const dishes = await Dish.find().sort({ name: 1 })
     res.render("admin/branches/form", {
       title: "Thêm Chi Nhánh Mới",
       branch: null,
-      dishes,
     })
   } catch (error) {
     console.error(error)
@@ -116,7 +113,7 @@ exports.createBranch = async (req, res) => {
     console.log("[restaurant] ========== CREATE BRANCH ==========")
     console.log("[restaurant] Full req.body:", JSON.stringify(req.body, null, 2))
 
-    const { name, address, phone, email, image, totalTables, openingHours, description, dishes } = req.body
+    const { name, address, phone, email, image, totalTables, openingHours, description } = req.body
 
     let imagesArray = []
     const rawImages = req.body.images
@@ -138,8 +135,6 @@ exports.createBranch = async (req, res) => {
     console.log("[restaurant] Final images array:", imagesArray)
     console.log("[restaurant] Final images count:", imagesArray.length)
 
-    const dishesArray = Array.isArray(dishes) ? dishes : dishes ? [dishes] : []
-
     const branch = new Branch({
       name,
       address,
@@ -151,7 +146,6 @@ exports.createBranch = async (req, res) => {
       availableTables: Number.parseInt(totalTables) || 20,
       openingHours: openingHours || "10:00 - 22:00",
       description: description || "",
-      dishes: dishesArray,
     })
 
     const savedBranch = await branch.save()
@@ -176,7 +170,7 @@ exports.getEditBranchForm = async (req, res) => {
       return res.redirect("/admin/branches?error=ID chi nhánh không hợp lệ")
     }
 
-    const branch = await Branch.findById(req.params.id).populate("dishes")
+    const branch = await Branch.findById(req.params.id)
 
     if (!branch) {
       console.error("[restaurant] Branch not found")
@@ -185,16 +179,10 @@ exports.getEditBranchForm = async (req, res) => {
 
     console.log("[restaurant] Branch found:", branch.name)
     console.log("[restaurant] Branch images:", branch.images)
-    console.log("[restaurant] Branch dishes:", branch.dishes?.length || 0)
-
-    const dishes = await Dish.find().sort({ name: 1 })
-
-    console.log("[restaurant] Total dishes available:", dishes.length)
 
     res.render("admin/branches/form", {
       title: "Chỉnh Sửa Chi Nhánh",
       branch,
-      dishes,
       error: req.query.error || null,
     })
   } catch (error) {
@@ -225,7 +213,7 @@ exports.updateBranch = async (req, res) => {
     console.log("[restaurant] Current images in DB:", currentBranch.images)
     console.log("[restaurant] Current images count:", currentBranch.images.length)
 
-    const { name, address, phone, email, image, totalTables, availableTables, openingHours, description, dishes } =
+    const { name, address, phone, email, image, totalTables, availableTables, openingHours, description } =
       req.body
 
     if (!name || !address || !phone) {
@@ -255,8 +243,6 @@ exports.updateBranch = async (req, res) => {
     console.log("[restaurant] Final images array:", imagesArray)
     console.log("[restaurant] Final images count:", imagesArray.length)
 
-    const dishesArray = Array.isArray(dishes) ? dishes : dishes ? [dishes] : []
-
     const updateData = {
       name,
       address,
@@ -268,7 +254,6 @@ exports.updateBranch = async (req, res) => {
       availableTables: Number.parseInt(availableTables) || currentBranch.availableTables,
       openingHours: openingHours || "10:00 - 22:00",
       description: description || "",
-      dishes: dishesArray,
     }
 
     console.log("[restaurant] About to update with images:", updateData.images)
@@ -368,7 +353,7 @@ exports.viewDetail = async (req, res) => {
   try {
     console.log("[restaurant] Loading branch detail for ID:", req.params.id)
 
-    const branch = await Branch.findById(req.params.id).populate("dishes")
+    const branch = await Branch.findById(req.params.id)
 
     if (!branch) {
       return res.redirect("/branches")
