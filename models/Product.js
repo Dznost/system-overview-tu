@@ -8,6 +8,7 @@ const productSchema = new mongoose.Schema({
   productType: { type: String, required: true }, // e.g., "beverage", "snack", "merchandise", etc.
   discount: { type: Number, default: 0 },
   available: { type: Boolean, default: true },
+  isActive: { type: Boolean, default: true }, // Visibility control
   event: { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
   
   // Inventory management - global quantity only (no branch-specific for products)
@@ -24,6 +25,9 @@ const productSchema = new mongoose.Schema({
   // Best-selling tracking (same 24-hour expiration as dishes)
   isBestSelling: { type: Boolean, default: false },
   bestSellingPromotedAt: { type: Date, default: null },
+  
+  // Warranty information (months)
+  warrantyMonths: { type: Number, default: 0 }, // 0 means no warranty
   
   createdAt: { type: Date, default: Date.now },
 })

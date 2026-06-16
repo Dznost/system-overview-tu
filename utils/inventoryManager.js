@@ -406,3 +406,57 @@ exports.getBestSellingProducts = async () => {
     throw error;
   }
 };
+
+/**
+ * Get active dishes (for public display)
+ * Only show dishes that are active (isActive: true)
+ * @param {Object} filters - Additional filters
+ * @returns {Promise<Array>} Array of active dishes
+ */
+exports.getActiveDishes = async (filters = {}) => {
+  try {
+    const query = { isActive: true, ...filters };
+    return await Dish.find(query).sort({ createdAt: -1 });
+  } catch (error) {
+    console.error("[restaurant] Error in getActiveDishes:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get active products (for public display)
+ * Only show products that are active (isActive: true)
+ * @param {Object} filters - Additional filters
+ * @returns {Promise<Array>} Array of active products
+ */
+exports.getActiveProducts = async (filters = {}) => {
+  try {
+    const query = { isActive: true, ...filters };
+    return await Product.find(query).sort({ createdAt: -1 });
+  } catch (error) {
+    console.error("[restaurant] Error in getActiveProducts:", error);
+    throw error;
+  }
+};
+
+/**
+ * Check if dish is visible for public (active AND available OR best-selling OR HOT)
+ * @param {Object} dish - Dish document
+ * @returns {Boolean} Whether dish should be visible to public
+ */
+exports.isDishVisible = (dish) => {
+  if (!dish.isActive) return false;
+  // Dish is visible if available, or if it's best-selling, or if it's part of an active event
+  return dish.available || dish.isBestSelling || dish.event;
+};
+
+/**
+ * Check if product is visible for public (active AND available OR best-selling OR HOT)
+ * @param {Object} product - Product document
+ * @returns {Boolean} Whether product should be visible to public
+ */
+exports.isProductVisible = (product) => {
+  if (!product.isActive) return false;
+  // Product is visible if available or if it's best-selling or HOT
+  return product.available || product.isBestSelling || product.isHot;
+};

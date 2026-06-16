@@ -8,6 +8,7 @@ const dishSchema = new mongoose.Schema({
   category: { type: String, enum: ["appetizer", "main", "dessert", "beverage"], required: true },
   discount: { type: Number, default: 0 },
   available: { type: Boolean, default: true },
+  isActive: { type: Boolean, default: true }, // Visibility control
   event: { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
   
   // Inventory management - global quantity
@@ -25,6 +26,9 @@ const dishSchema = new mongoose.Schema({
   // Best-selling tracking
   isBestSelling: { type: Boolean, default: false },
   bestSellingPromotedAt: { type: Date, default: null },
+  
+  // Preparation time in minutes
+  preparationTime: { type: Number, default: 15 },
   
   createdAt: { type: Date, default: Date.now },
 })

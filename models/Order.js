@@ -32,12 +32,46 @@ const orderSchema = new mongoose.Schema({
   staffId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   // Staff member who created this order on behalf of a guest (for reception_behalf orders)
   createdByStaff: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  // Detailed status tracking
   status: { 
     type: String, 
-    enum: ["pending", "approved", "paid", "processing", "shipping", "delivered", "completed", "cancelled"], 
-    default: "pending" 
+    enum: [
+      // Shared
+      "pending_approval", "approved", "cancelled",
+      // Delivery-specific
+      "assigned_shipper", "shipped", "delivery_failed", "delivered_success",
+      // Dine-in specific
+      "confirmed", "preparing", "ready", "served",
+      // Payment
+      "payment_pending", "payment_completed", "payment_failed"
+    ], 
+    default: "pending_approval" 
   },
-  paymentStatus: { type: String, enum: ["unpaid", "paid"], default: "unpaid" },
+  paymentStatus: { type: String, enum: ["unpaid", "paid", "partial", "debt"], default: "unpaid" },
+  paymentMethod: String,
+  collectionStatus: { type: String, enum: ["not_collected", "pending_collection", "collected"], default: "not_collected" },
+  
+  // Approval workflow
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  approvedAt: Date,
+  
+  // Shipper assignment
+  assignedShipperId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  assignedAt: Date,
+  deliveryAttempts: [{
+    attemptNumber: Number,
+    timestamp: { type: Date, default: Date.now },
+    status: { type: String, enum: ["success", "failed", "rescheduled"] },
+    reason: String
+  }],
+  
+  // Coupon and loyalty
+  couponCode: String,
+  couponDiscount: { type: Number, default: 0 },
+  loyaltyPointsEarned: { type: Number, default: 0 },
+  loyaltyPointsUsed: { type: Number, default: 0 },
+  
+  // Delivery and customer info
   paymentMethod: String,
   deliveryAddress: String,
   fullName: String,
