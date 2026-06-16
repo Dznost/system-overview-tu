@@ -350,11 +350,17 @@ exports.cancelOrder = async (req, res) => {
       return res.redirect(`/admin/orders/${req.params.id}?success=Don hang da huy truoc do`);
     }
     
-    // Restore inventory for all items in the order
+    // Rubric 1.1: Huy don hang thi so luong duoc cong len (ca mon an va san pham)
     for (const item of order.items) {
-      if (item.dishId) {
+      if (item.itemType === "dish" && item.dishId) {
         await inventoryManager.incrementQuantity(
-          item.dishId._id,
+          item.dishId._id || item.dishId,
+          order.branchId,
+          item.quantity
+        );
+      } else if (item.itemType === "product" && item.productId) {
+        await inventoryManager.incrementProductQuantity(
+          item.productId._id || item.productId,
           order.branchId,
           item.quantity
         );

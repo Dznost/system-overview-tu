@@ -67,6 +67,10 @@ app.use("/admin/reservations", require("./routes/admin/reservations"))
 app.use("/admin/users", require("./routes/admin/users"))
 app.use("/admin/contacts", require("./routes/admin/contacts"))
 app.use("/admin/revenue", require("./routes/admin/revenue"))
+app.use("/admin/coupons", require("./routes/admin/coupons"))
+app.use("/admin/reviews", require("./routes/admin/reviews"))
+app.use("/admin/qa", require("./routes/admin/qa"))
+app.use("/admin/warranties", require("./routes/admin/warranties"))
 
 // 404 handler
 app.use((req, res) => {

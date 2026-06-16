@@ -21,18 +21,18 @@ router.use((req, res, next) => {
 // Home
 router.get("/", async (req, res) => {
   try {
-    // Get dishes with quantity > 0 (in stock), prioritize best-selling
-    const dishes = await Dish.find({ quantity: { $gt: 0 } })
+    // Rubric 1.1: Chi hien thi hang hoa san sang ban, con hang (quantity > 0) va dang active
+    const dishes = await Dish.find({ quantity: { $gt: 0 }, isActive: { $ne: false } })
       .sort({ isBestSelling: -1, createdAt: -1 })
       .limit(6)
     
-    // Get regular products (show all, even with quantity 0), prioritize best-selling
-    const products = await Product.find({ isHot: false })
+    // Rubric 1.1: San pham thuong chi hien thi khi con hang (quantity > 0); hang het khong hien
+    const products = await Product.find({ isHot: false, quantity: { $gt: 0 }, isActive: { $ne: false } })
       .sort({ isBestSelling: -1, createdAt: -1 })
       .limit(6)
     
-    // Get HOT products (only show those marked as HOT)
-    const hotProducts = await Product.find({ isHot: true })
+    // Rubric 1.1: Hang HOT van hien thi ke ca khi het hang (quantity = 0) kem chu thich "Chay Hang"
+    const hotProducts = await Product.find({ isHot: true, isActive: { $ne: false } })
       .sort({ createdAt: -1 })
       .limit(6)
     
@@ -71,7 +71,7 @@ router.get("/menu", async (req, res) => {
     const category = req.query.category || "all"
     const search = req.query.search || ""
 
-    const query = { quantity: { $gt: 0 } } // Only show dishes with quantity > 0
+    const query = { quantity: { $gt: 0 }, isActive: { $ne: false } } // Rubric 1.1: chi hien mon con hang & dang active
     if (category !== "all") {
       query.category = category
     }
@@ -102,9 +102,15 @@ router.get("/products", async (req, res) => {
   try {
     const search = req.query.search || ""
 
-    const query = {}
+    // Rubric 1.1: chi hien thi hang con (quantity > 0), tru hang HOT van hien thi khi het (kem "Chay Hang")
+    const query = {
+      isActive: { $ne: false },
+      $or: [{ quantity: { $gt: 0 } }, { isHot: true }],
+    }
     if (search) {
-      query.$or = [{ name: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }]
+      query.$and = [
+        { $or: [{ name: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }] },
+      ]
     }
 
     const products = await Product.find(query).sort({ isHot: -1, isBestSelling: -1, createdAt: -1 })
@@ -427,38 +433,6 @@ router.post("/order-review/:id", async (req, res) => {
     }
 
     res.redirect(`/order-review/${order._id}?success=rated`)
-  } catch (error) {
-    res.status(500).render("error", { error: error.message, layout: false })
-  }
-})
-
-// Product detail
-router.get("/product/:id", async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id)
-    if (!product) return res.status(404).render("404", { layout: false })
-    res.render("public/products/detail", { product, title: product.name })
-  } catch (error) {
-    res.status(500).render("error", { error: error.message, layout: false })
-  }
-})
-
-// Products page
-router.get("/products", async (req, res) => {
-  try {
-    const productType = req.query.type || "all"
-    const search = req.query.search || ""
-
-    const query = {}
-    if (productType !== "all") {
-      query.productType = productType
-    }
-    if (search) {
-      query.$or = [{ name: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }]
-    }
-
-    const products = await Product.find(query).sort({ isHot: -1, isBestSelling: -1, createdAt: -1 })
-    res.render("public/products/index", { products, productType, search, title: "San Pham" })
   } catch (error) {
     res.status(500).render("error", { error: error.message, layout: false })
   }

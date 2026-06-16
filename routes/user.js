@@ -684,6 +684,20 @@ router.post("/order", checkAuth, async (req, res) => {
 
     await order.save()
 
+    // Rubric 1.1: Dat hang thanh cong thi so luong hang hoa bi tru
+    const inventoryManager = require("../utils/inventoryManager")
+    for (const item of items) {
+      try {
+        if (item.itemType === "dish" && item.dishId) {
+          await inventoryManager.decrementQuantity(item.dishId, order.branchId || null, item.quantity)
+        } else if (item.itemType === "product" && item.productId) {
+          await inventoryManager.decrementProductQuantity(item.productId, order.branchId || null, item.quantity)
+        }
+      } catch (invErr) {
+        console.error("[restaurant] Inventory deduction error:", invErr)
+      }
+    }
+
     if (finalPrice > 100000000) {
       const notification = new Notification({
         type: "large_order",
