@@ -566,6 +566,8 @@ router.post("/order", checkAuth, async (req, res) => {
       specialRequests,
       paymentTiming,
       largeOrderNote,
+      couponCode,
+      loyaltyPointsToUse,
     } = req.body
     const cart = req.session.cart || []
 
@@ -575,7 +577,12 @@ router.post("/order", checkAuth, async (req, res) => {
 
     let totalPrice = 0
     let totalDiscount = 0
+    let couponDiscount = 0
+    let loyaltyPointsUsed = 0
     const items = []
+
+    // Get user for loyalty points
+    const user = await User.findById(req.session.user.id)
 
     for (const item of cart) {
       // Handle dish
@@ -618,7 +625,34 @@ router.post("/order", checkAuth, async (req, res) => {
       }
     }
 
-    const finalPrice = totalPrice - totalDiscount
+    // Process coupon if provided
+    if (couponCode) {
+      const Coupon = require("../models/Coupon");
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
+
+      if (coupon && coupon.isValid() && (totalPrice - totalDiscount) >= coupon.minOrderAmount) {
+        couponDiscount =
+          coupon.discountType === "percentage"
+            ? Math.round(((totalPrice - totalDiscount) * coupon.discountValue) / 100)
+            : coupon.discountValue;
+
+        // Track coupon usage
+        await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } });
+      }
+    }
+
+    // Process loyalty points if provided
+    if (loyaltyPointsToUse && user) {
+      const pointsToUse = Number(loyaltyPointsToUse);
+      // 1 point = 1,000 VND
+      const pointsValue = pointsToUse * 1000;
+
+      if (pointsToUse > 0 && user.loyaltyPoints >= pointsToUse) {
+        loyaltyPointsUsed = pointsToUse;
+      }
+    }
+
+    const finalPrice = totalPrice - totalDiscount - couponDiscount - loyaltyPointsUsed * 1000;
 
     if (finalPrice > 10000000 && paymentTiming === "cod") {
       return res.status(400).render("error", {
@@ -635,6 +669,9 @@ router.post("/order", checkAuth, async (req, res) => {
       paymentTiming: paymentTiming || "prepaid",
       totalPrice,
       discount: totalDiscount,
+      couponCode: couponCode || null,
+      couponDiscount,
+      loyaltyPointsUsed,
       finalPrice,
       deliveryAddress,
       fullName,
@@ -853,6 +890,27 @@ router.post("/payment/order/:orderId/confirm", checkAuth, async (req, res) => {
       }
     }
     console.log("[restaurant] Order counts incremented for all items")
+
+    // Process loyalty points
+    const loyaltyManager = require("../utils/loyaltyManager");
+    const user = await User.findById(order.userId);
+    
+    if (user) {
+      // Calculate points earned (1 point per 1,000 VND)
+      const pointsEarned = loyaltyManager.calculatePointsFromOrder(order.finalPrice);
+      
+      // Add points to user
+      await loyaltyManager.addLoyaltyPoints(user._id, pointsEarned);
+      
+      // Update user's total spending
+      await loyaltyManager.updateUserSpending(user._id, order.finalPrice);
+      
+      // Update order with loyalty info
+      order.loyaltyPointsEarned = pointsEarned;
+      await order.save();
+      
+      console.log("[restaurant] Loyalty points earned:", pointsEarned, "for user:", user.name);
+    }
 
     res.redirect("/user/profile?success=Thanh toán thành công!")
   } catch (error) {
