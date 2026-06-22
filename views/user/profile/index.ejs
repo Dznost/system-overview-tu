@@ -72,10 +72,16 @@
                             <div style="width: <%= Math.min((((user.loyaltyPoints || 0) % 5000) / 5000) * 100, 100) %>%; height: 100%; background: <%= currentTier.color %>; transition: width 0.3s;"></div>
                         </div>
                         <p style="margin: 8px 0 0; color: #999; font-size: 0.8rem;">
-                            <% var nextTierMin = 0; %>
-                            <% if (user.loyaltyPoints < 1000) nextTierMin = 1000 - (user.loyaltyPoints || 0); %>
-                            <% else if (user.loyaltyPoints < 5000) nextTierMin = 5000 - (user.loyaltyPoints || 0); %>
-                            <% else if (user.loyaltyPoints < 20000) nextTierMin = 20000 - (user.loyaltyPoints || 0); %>
+                            <% 
+                                var nextTierMin = 0;
+                                if (user.loyaltyPoints < 1000) {
+                                    nextTierMin = 1000 - (user.loyaltyPoints || 0);
+                                } else if (user.loyaltyPoints < 5000) {
+                                    nextTierMin = 5000 - (user.loyaltyPoints || 0);
+                                } else if (user.loyaltyPoints < 20000) {
+                                    nextTierMin = 20000 - (user.loyaltyPoints || 0);
+                                }
+                            %>
                             <% if (nextTierMin > 0) { %>
                                 Còn <%= nextTierMin %> điểm nữa để đạt hạng tiếp theo!
                             <% } else { %>
