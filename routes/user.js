@@ -688,7 +688,7 @@ router.post("/order", checkAuth, async (req, res) => {
       phone,
       specialRequests,
       largeOrderNote: largeOrderNote || null,
-      status: "pending",
+      status: "pending_approval",
     })
 
     await order.save()
