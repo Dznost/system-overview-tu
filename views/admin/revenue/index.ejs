@@ -57,6 +57,17 @@
           <p style="color:#888;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">TB / Giao Dich</p>
           <p style="font-size:1.6rem;font-weight:700;color:#ef6c00;margin:0;"><%= avgTransactionValue.toLocaleString('vi-VN') %>d</p>
         </div>
+        <!-- Rubric 3.2: Thong ke theo phuong thuc thanh toan -->
+        <div style="background:white;padding:24px;border-radius:12px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:4px solid #388e3c;">
+          <p style="color:#888;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Tien Mat (COD)</p>
+          <p style="font-size:1.6rem;font-weight:700;color:#388e3c;margin:0;"><%= codTotal.toLocaleString('vi-VN') %>d</p>
+          <p style="font-size:0.82rem;color:#aaa;margin-top:4px;"><%= codPayments.length %> giao dich</p>
+        </div>
+        <div style="background:white;padding:24px;border-radius:12px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:4px solid #0277bd;">
+          <p style="color:#888;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Chuyen Khoan / Online</p>
+          <p style="font-size:1.6rem;font-weight:700;color:#0277bd;margin:0;"><%= onlineTotal.toLocaleString('vi-VN') %>d</p>
+          <p style="font-size:0.82rem;color:#aaa;margin-top:4px;"><%= onlinePayments.length %> giao dich</p>
+        </div>
       </div>
     </div>
 

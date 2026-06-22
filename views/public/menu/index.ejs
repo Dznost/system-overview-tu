@@ -19,7 +19,21 @@
                     </svg>
                     <input type="text" name="search" placeholder="Tim kiem mon an..." value="<%= search || '' %>" class="menu-search-input">
                 </div>
+                
+                <!-- Rubric 5.1: Tim kiem nang cao - Gia va Rating -->
+                <input type="number" name="minPrice" placeholder="Gia tu (d)" value="<%= minPrice || '' %>" min="0" style="width: 120px; padding: 8px;">
+                <input type="number" name="maxPrice" placeholder="Gia den (d)" value="<%= maxPrice || '' %>" min="0" style="width: 120px; padding: 8px;">
+                <select name="minRating" style="width: 120px; padding: 8px;">
+                    <option value="">-- Rating --</option>
+                    <option value="3" <%= minRating == 3 ? 'selected' : '' %>>3+ Sao</option>
+                    <option value="4" <%= minRating == 4 ? 'selected' : '' %>>4+ Sao</option>
+                    <option value="4.5" <%= minRating == 4.5 ? 'selected' : '' %>>4.5+ Sao</option>
+                </select>
+                
                 <button type="submit" class="btn btn-primary">Tim Kiem</button>
+                <% if (search || minPrice || maxPrice || minRating) { %>
+                    <a href="/menu" class="btn" style="background: #f0f0f0; color: #333;">Reset</a>
+                <% } %>
             </form>
         </div>
         

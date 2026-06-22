@@ -35,8 +35,10 @@
                 <% }); %>
                 <% } %>
             </select>
+            <input type="date" name="fromDate" value="<%= typeof fromDate !== 'undefined' ? fromDate : '' %>" class="filter-select" title="Tu ngay">
+            <input type="date" name="toDate" value="<%= typeof toDate !== 'undefined' ? toDate : '' %>" class="filter-select" title="Den ngay">
             <button type="submit" class="btn btn-primary btn-filter">Loc</button>
-            <% if ((typeof searchQuery !== 'undefined' && searchQuery) || (typeof statusFilter !== 'undefined' && statusFilter) || (typeof orderTypeFilter !== 'undefined' && orderTypeFilter) || (typeof branchFilter !== 'undefined' && branchFilter)) { %>
+            <% if ((typeof searchQuery !== 'undefined' && searchQuery) || (typeof statusFilter !== 'undefined' && statusFilter) || (typeof orderTypeFilter !== 'undefined' && orderTypeFilter) || (typeof branchFilter !== 'undefined' && branchFilter) || (typeof fromDate !== 'undefined' && fromDate) || (typeof toDate !== 'undefined' && toDate)) { %>
             <a href="/admin/orders" class="btn btn-clear">Xoa loc</a>
             <% } %>
         </form>

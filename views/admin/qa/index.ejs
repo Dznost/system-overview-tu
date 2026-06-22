@@ -1,0 +1,59 @@
+<div class="admin-layout">
+  <div class="container py-6">
+    <h1 class="text-3xl font-bold mb-6">Quản Lý Hỏi Đáp Sản Phẩm</h1>
+
+    <% if (questions && questions.length > 0) { %>
+      <div class="space-y-4">
+        <% questions.forEach(qa => { %>
+          <div class="qa-card card p-4 border rounded">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                  <strong><%= qa.userId ? qa.userId.name || 'Khách Hàng' : 'Ẩn Danh' %></strong>
+                  <span class="text-sm text-gray-500">
+                    <%= new Date(qa.createdAt).toLocaleDateString('vi-VN') %>
+                  </span>
+                </div>
+
+                <% if (qa.productId) { %>
+                  <p class="text-sm text-gray-600 mb-2">Sản Phẩm: <strong><%= qa.productId.name %></strong></p>
+                <% } %>
+                <% if (qa.dishId) { %>
+                  <p class="text-sm text-gray-600 mb-2">Món Ăn: <strong><%= qa.dishId.name %></strong></p>
+                <% } %>
+
+                <div class="question-content mb-3 p-3 bg-blue-50 rounded border-l-4 border-blue-400">
+                  <p class="font-semibold text-blue-900">Câu Hỏi:</p>
+                  <p><%= qa.question %></p>
+                </div>
+
+                <% if (qa.answer) { %>
+                  <div class="answer-content p-3 bg-green-50 rounded border-l-4 border-green-400 mb-3">
+                    <p class="font-semibold text-green-900">Trả Lời:</p>
+                    <p><%= qa.answer %></p>
+                    <p class="text-xs text-gray-500 mt-2">Trả lời bởi: <%= qa.answeredBy ? qa.answeredBy.name : 'Admin' %> • <%= new Date(qa.answeredAt).toLocaleDateString('vi-VN') %></p>
+                  </div>
+                <% } else { %>
+                  <div class="p-3 bg-yellow-50 rounded border-l-4 border-yellow-400 mb-3">
+                    <p class="text-sm text-yellow-900">⏳ Chưa có câu trả lời</p>
+                  </div>
+                  
+                  <form method="POST" action="/admin/qa/<%= qa._id %>/answer" class="mb-3">
+                    <textarea name="answer" placeholder="Nhập câu trả lời..." required rows="3" class="w-full p-2 border rounded"></textarea>
+                    <button type="submit" class="btn btn-sm btn-primary mt-2">Gửi Trả Lời</button>
+                  </form>
+                <% } %>
+              </div>
+
+              <form method="POST" action="/admin/qa/<%= qa._id %>/delete" style="display: inline;" onsubmit="return confirm('Xóa câu hỏi này?');">
+                <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
+              </form>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } else { %>
+      <div class="alert alert-info">Chưa có câu hỏi nào.</div>
+    <% } %>
+  </div>
+</div>

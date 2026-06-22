@@ -140,6 +140,22 @@
                     <p class="info-text">Don hang tren 100 trieu dong se duoc Admin xem xet va lien he xac nhan.</p>
                 </div>
                 <% } %>
+
+                <!-- Rubric 5.5: Ma giam gia & Loyalty points -->
+                <div class="form-section-title">Khuyen Mai</div>
+                
+                <div class="form-group">
+                    <label for="couponCode">Nhap Ma Giam Gia (Neu Co)</label>
+                    <input type="text" id="couponCode" name="couponCode" placeholder="VD: SUMMER2024" maxlength="50" style="text-transform: uppercase;">
+                </div>
+
+                <div class="form-group">
+                    <label for="loyaltyPointsToUse">Dung Diem Tich Luy (Neu Co) - 1 Diem = 1,000d</label>
+                    <input type="number" id="loyaltyPointsToUse" name="loyaltyPointsToUse" placeholder="So diem muon su dung" min="0" max="<%= typeof loyaltyPoints !== 'undefined' ? loyaltyPoints : 0 %>">
+                    <% if (typeof loyaltyPoints !== 'undefined' && loyaltyPoints > 0) { %>
+                        <p class="info-text">Ban hien co <strong><%= loyaltyPoints %></strong> diem tich luy (tuong duong: <%= (loyaltyPoints * 1000).toLocaleString('vi-VN') %>d)</p>
+                    <% } %>
+                </div>
                 
                 <div class="checkout-actions">
                     <a href="/user/cart" class="btn btn-secondary">Quay Lai Gio Hang</a>

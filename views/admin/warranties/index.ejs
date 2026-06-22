@@ -1,0 +1,80 @@
+<div class="admin-layout">
+  <div class="container py-6">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold">Quản Lý Bảo Hành</h1>
+      <a href="/admin/warranties/new" class="btn btn-primary">+ Thêm Bảo Hành</a>
+    </div>
+
+    <% if (warranties && warranties.length > 0) { %>
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Số Giấy</th>
+              <th>Sản Phẩm</th>
+              <th>Khách Hàng</th>
+              <th>Ngày Mua</th>
+              <th>Hạn Bảo Hành</th>
+              <th>Trạng Thái</th>
+              <th>Hành Động</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% warranties.forEach(warranty => { %>
+              <tr>
+                <td><strong><%= warranty._id.toString().slice(-8).toUpperCase() %></strong></td>
+                <td>
+                  <% if (warranty.productId) { %>
+                    <%= warranty.productId.name %>
+                  <% } else if (warranty.dishId) { %>
+                    <%= warranty.dishId.name %>
+                  <% } else { %>
+                    N/A
+                  <% } %>
+                </td>
+                <td>
+                  <% if (warranty.userId) { %>
+                    <%= warranty.userId.name %>
+                  <% } else { %>
+                    N/A
+                  <% } %>
+                </td>
+                <td><%= new Date(warranty.purchaseDate).toLocaleDateString('vi-VN') %></td>
+                <td><%= new Date(warranty.expiryDate).toLocaleDateString('vi-VN') %></td>
+                <td>
+                  <% 
+                    const now = new Date();
+                    const expiry = new Date(warranty.expiryDate);
+                    let status = warranty.status;
+                    if (status === 'active') {
+                      if (now > expiry) {
+                        status = 'expired';
+                      }
+                    }
+                  %>
+                  <% if (status === 'active') { %>
+                    <span class="badge badge-success">Hoạt Động</span>
+                  <% } else if (status === 'expired') { %>
+                    <span class="badge badge-danger">Hết Hạn</span>
+                  <% } else if (status === 'claimed') { %>
+                    <span class="badge badge-info">Đã Nhận</span>
+                  <% } %>
+                </td>
+                <td>
+                  <div class="action-buttons">
+                    <a href="/admin/warranties/<%= warranty._id %>" class="btn-sm btn-edit">Xem</a>
+                    <form method="POST" action="/admin/warranties/<%= warranty._id %>/delete" style="display: inline;" onsubmit="return confirm('Xác nhận xóa?');">
+                      <button type="submit" class="btn-sm btn-danger">Xóa</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <div class="alert alert-info">Chưa có bảo hành nào. <a href="/admin/warranties/new">Thêm bảo hành mới</a></div>
+    <% } %>
+  </div>
+</div>

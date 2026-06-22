@@ -1,0 +1,96 @@
+<section class="checkout-section">
+  <div class="container">
+    <h1>Theo Dõi Đơn Hàng</h1>
+
+    <div class="checkout-content">
+      <div class="order-summary" style="max-width: 600px; margin: 0 auto;">
+        <h2>Tìm Kiếm Đơn Hàng</h2>
+
+        <% if (errorMsg) { %>
+          <div class="alert alert-danger" style="padding: 15px; margin-bottom: 20px; background: #ffebee; color: #c62828; border-radius: 8px;">
+            <%= errorMsg %>
+          </div>
+        <% } %>
+
+        <form method="GET" action="/user/track-order" class="checkout-form">
+          <div class="form-group">
+            <label for="phone">Số Điện Thoại Đặt Hàng *</label>
+            <input type="tel" id="phone" name="phone" placeholder="Nhập số điện thoại" required value="<%= phone || '' %>">
+          </div>
+
+          <div class="form-group">
+            <label for="orderCode">Mã Đơn Hàng (6 ký tự cuối) *</label>
+            <input type="text" id="orderCode" name="orderCode" placeholder="VD: ABC123" maxlength="6" required value="<%= orderCode || '' %>" style="text-transform: uppercase;">
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-lg">Tìm Kiếm</button>
+        </form>
+
+        <% if (order) { %>
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+            <h3>Thông Tin Đơn Hàng</h3>
+
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+              <p><strong>Mã Đơn:</strong> #<%= order._id.toString().slice(-6).toUpperCase() %></p>
+              <p><strong>Ngày Đặt:</strong> <%= new Date(order.createdAt).toLocaleDateString('vi-VN') %></p>
+              <p><strong>Loại Đơn:</strong> 
+                <% if (order.orderType === 'dine-in') { %>
+                  Ăn Tại Quán
+                <% } else { %>
+                  Mang Về
+                <% } %>
+              </p>
+              <p><strong>Tổng Tiền:</strong> <%= order.finalPrice.toLocaleString('vi-VN') %>đ</p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <h4>Trạng Thái</h4>
+              <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <span class="badge" style="background: <%= order.status === 'pending' ? '#ff9800' : '#4caf50' %>; color: white; padding: 8px 12px; border-radius: 4px;">
+                  <%= order.status.toUpperCase() %>
+                </span>
+                <span class="badge" style="background: <%= order.paymentStatus === 'paid' ? '#4caf50' : '#ff9800' %>; color: white; padding: 8px 12px; border-radius: 4px;">
+                  Thanh toán: <%= order.paymentStatus.toUpperCase() %>
+                </span>
+              </div>
+            </div>
+
+            <% if (order.items && order.items.length > 0) { %>
+              <div style="margin-bottom: 20px;">
+                <h4>Các Mặt Hàng</h4>
+                <table class="cart-table" style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr style="border-bottom: 2px solid #e0e0e0;">
+                      <th style="text-align: left; padding: 10px;">Tên</th>
+                      <th style="text-align: center; padding: 10px;">SL</th>
+                      <th style="text-align: right; padding: 10px;">Giá</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% order.items.forEach(item => { %>
+                      <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 10px;"><%= item.name || 'N/A' %></td>
+                        <td style="text-align: center; padding: 10px;"><%= item.quantity %></td>
+                        <td style="text-align: right; padding: 10px;"><%= (item.price * item.quantity).toLocaleString('vi-VN') %>đ</td>
+                      </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+
+            <% if (order.shipperId) { %>
+              <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4>Shipper Giao Hàng</h4>
+                <p><strong><%= order.shipperId.name %></strong></p>
+                <p><%= order.shipperId.phone %></p>
+              </div>
+            <% } %>
+
+            <a href="/" class="btn btn-secondary" style="margin-top: 20px;">Quay Lại Trang Chủ</a>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</section>

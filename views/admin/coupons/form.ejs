@@ -1,0 +1,68 @@
+<div class="admin-layout">
+  <div class="container py-6">
+    <h1 class="text-3xl font-bold mb-6"><%= coupon ? 'Sửa Mã Giảm Giá' : 'Thêm Mã Giảm Giá Mới' %></h1>
+
+    <form method="POST" action="<%= coupon ? '/admin/coupons/' + coupon._id + '/update' : '/admin/coupons' %>" class="form-container">
+      <div class="form-group">
+        <label for="code">Mã Giảm Giá *</label>
+        <input type="text" name="code" id="code" required value="<%= coupon ? coupon.code : '' %>" placeholder="VD: SUMMER2024" maxlength="50">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="discountType">Loại Giảm *</label>
+          <select name="discountType" id="discountType" required onchange="updateDiscountLabel()">
+            <option value="">-- Chọn --</option>
+            <option value="percentage" <%= coupon && coupon.discountType === 'percentage' ? 'selected' : '' %>>Phần Trăm (%)</option>
+            <option value="fixed_amount" <%= coupon && coupon.discountType === 'fixed_amount' ? 'selected' : '' %>>Cố Định (₫)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="discountValue">Giá Trị <span id="discountLabel">Giảm</span> *</label>
+          <input type="number" name="discountValue" id="discountValue" required value="<%= coupon ? coupon.discountValue : '' %>" min="0">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="validFrom">Ngày Bắt Đầu *</label>
+          <input type="datetime-local" name="validFrom" id="validFrom" required value="<%= coupon ? new Date(coupon.validFrom).toISOString().slice(0, 16) : '' %>">
+        </div>
+
+        <div class="form-group">
+          <label for="validUntil">Ngày Kết Thúc *</label>
+          <input type="datetime-local" name="validUntil" id="validUntil" required value="<%= coupon ? new Date(coupon.validUntil).toISOString().slice(0, 16) : '' %>">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="maxUses">Số Lượt Sử Dụng Tối Đa *</label>
+        <input type="number" name="maxUses" id="maxUses" required value="<%= coupon ? coupon.maxUses : '' %>" min="1">
+      </div>
+
+      <div class="form-group">
+        <label for="applicableTo">Áp Dụng Cho (tách nhau bằng dấu phẩy)</label>
+        <textarea name="applicableTo" id="applicableTo" placeholder="all / dish / product / hoặc ID sản phẩm" rows="3"><%= coupon && coupon.applicableTo ? coupon.applicableTo.join(', ') : '' %></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="minOrderValue">Giá Trị Đơn Tối Thiểu (₫)</label>
+        <input type="number" name="minOrderValue" id="minOrderValue" value="<%= coupon ? coupon.minOrderValue || '' : '' %>" min="0">
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Lưu</button>
+        <a href="/admin/coupons" class="btn btn-secondary">Hủy</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function updateDiscountLabel() {
+  const type = document.getElementById('discountType').value;
+  document.getElementById('discountLabel').textContent = type === 'percentage' ? 'Tỷ Lệ (%)' : 'Số Tiền (₫)';
+}
+document.addEventListener('DOMContentLoaded', updateDiscountLabel);
+</script>

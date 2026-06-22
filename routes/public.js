@@ -70,6 +70,10 @@ router.get("/menu", async (req, res) => {
   try {
     const category = req.query.category || "all"
     const search = req.query.search || ""
+    // Rubric 5.1: Tim kiem nang cao - loc theo gia & rating
+    const minPrice = req.query.minPrice ? parseInt(req.query.minPrice) : null
+    const maxPrice = req.query.maxPrice ? parseInt(req.query.maxPrice) : null
+    const minRating = req.query.minRating ? parseFloat(req.query.minRating) : null
 
     const query = { quantity: { $gt: 0 }, isActive: { $ne: false } } // Rubric 1.1: chi hien mon con hang & dang active
     if (category !== "all") {
@@ -78,9 +82,28 @@ router.get("/menu", async (req, res) => {
     if (search) {
       query.$or = [{ name: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }]
     }
+    
+    // Rubric 5.1: Loc theo khoang gia
+    if (minPrice !== null || maxPrice !== null) {
+      query.price = {}
+      if (minPrice !== null) query.price.$gte = minPrice
+      if (maxPrice !== null) query.price.$lte = maxPrice
+    }
+    
+    // Rubric 5.1: Loc theo rating (tim Rating model theo dishId)
+    let dishes = await Dish.find(query).sort({ isBestSelling: -1, createdAt: -1 })
+    if (minRating !== null) {
+      const Review = require("../models/Review")
+      const ratedDishIds = await Review.aggregate([
+        { $group: { _id: "$dishId", avgRating: { $avg: "$rating" } } },
+        { $match: { avgRating: { $gte: minRating } } },
+        { $project: { _id: 1 } }
+      ])
+      const ratedIds = ratedDishIds.map(r => r._id)
+      dishes = dishes.filter(d => ratedIds.includes(d._id))
+    }
 
-    const dishes = await Dish.find(query).sort({ isBestSelling: -1, createdAt: -1 })
-    res.render("public/menu/index", { dishes, category, search, title: "Thực Đơn" })
+    res.render("public/menu/index", { dishes, category, search, minPrice, maxPrice, minRating, title: "Thực Đơn" })
   } catch (error) {
     res.status(500).render("error", { error: error.message, layout: false })
   }

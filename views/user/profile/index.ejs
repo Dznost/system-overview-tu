@@ -38,6 +38,51 @@
                             <span class="meta-value"><%= new Date(user.createdAt).toLocaleDateString('vi-VN') %></span>
                         </div>
                     </div>
+
+                    <!-- Rubric 6.1: Loyalty & Tier Info -->
+                    <% 
+                        var loyaltyTiers = [
+                            { min: 0, name: 'Member', color: '#9e9e9e', icon: '★' },
+                            { min: 1000, name: 'Silver', color: '#c0c0c0', icon: '✦' },
+                            { min: 5000, name: 'Gold', color: '#ffd700', icon: '✦✦' },
+                            { min: 20000, name: 'Platinum', color: '#e5e4e2', icon: '✦✦✦' }
+                        ];
+                        var currentTier = loyaltyTiers[0];
+                        for (var t of loyaltyTiers) {
+                            if (user.loyaltyPoints >= t.min) currentTier = t;
+                        }
+                    %>
+                    <div class="loyalty-card" style="background: linear-gradient(135deg, <%= currentTier.color %> 0%, rgba(0,0,0,0.05) 100%); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                            <h3 style="margin: 0; color: #333;">Khách Hàng Thân Thiết</h3>
+                            <span style="background: <%= currentTier.color %>; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                                <%= currentTier.name %> <%= currentTier.icon %>
+                            </span>
+                        </div>
+                        <div style="margin-bottom: 12px;">
+                            <p style="margin: 0 0 8px; color: #666; font-size: 0.9rem;">Điểm Tích Lũy</p>
+                            <p style="margin: 0; font-size: 1.8rem; font-weight: 700; color: <%= currentTier.color %>;">
+                                <%= user.loyaltyPoints || 0 %>
+                            </p>
+                            <p style="margin: 4px 0 0; color: #999; font-size: 0.85rem;">
+                                = <%= ((user.loyaltyPoints || 0) * 1000).toLocaleString('vi-VN') %>đ
+                            </p>
+                        </div>
+                        <div style="background: white; height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="width: <%= Math.min((((user.loyaltyPoints || 0) % 5000) / 5000) * 100, 100) %>%; height: 100%; background: <%= currentTier.color %>; transition: width 0.3s;"></div>
+                        </div>
+                        <p style="margin: 8px 0 0; color: #999; font-size: 0.8rem;">
+                            <% var nextTierMin = 0; %>
+                            <% if (user.loyaltyPoints < 1000) nextTierMin = 1000 - (user.loyaltyPoints || 0); %>
+                            <% else if (user.loyaltyPoints < 5000) nextTierMin = 5000 - (user.loyaltyPoints || 0); %>
+                            <% else if (user.loyaltyPoints < 20000) nextTierMin = 20000 - (user.loyaltyPoints || 0); %>
+                            <% if (nextTierMin > 0) { %>
+                                Còn <%= nextTierMin %> điểm nữa để đạt hạng tiếp theo!
+                            <% } else { %>
+                                ★ Bạn đã đạt hạng cao nhất!
+                            <% } %>
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Change password form -->

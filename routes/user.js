@@ -543,12 +543,21 @@ router.get("/checkout", checkAuth, async (req, res) => {
     const finalTotal = total - totalDiscount
     const isCODRestricted = finalTotal > 10000000
 
+    // Rubric 5.5: Lay diem loyalty cua khach dang nhap
+    let loyaltyPoints = 0
+    if (req.session.user && req.session.user.id) {
+      const User = require("../models/User")
+      const user = await User.findById(req.session.user.id)
+      loyaltyPoints = user && user.loyaltyPoints ? user.loyaltyPoints : 0
+    }
+
     res.render("user/checkout/index", {
       cart,
       total,
       totalDiscount,
       finalTotal,
       isCODRestricted,
+      loyaltyPoints,
     })
   } catch (error) {
     console.error("[restaurant] Error in checkout:", error)
@@ -697,6 +706,17 @@ router.post("/order", checkAuth, async (req, res) => {
         console.error("[restaurant] Inventory deduction error:", invErr)
       }
     }
+
+    // Rubric 5.4: Thong bao dat hang thanh cong cho khach
+    const successNotif = new Notification({
+      type: "order_created",
+      orderId: order._id,
+      userId: req.session.user.id,
+      amount: finalPrice,
+      message: `Đơn hàng #${order._id.toString().slice(-6).toUpperCase()} đã được tạo thành công. Số tiền: ${finalPrice.toLocaleString("vi-VN")}đ`,
+      status: "unread",
+    })
+    await successNotif.save()
 
     if (finalPrice > 100000000) {
       const notification = new Notification({
@@ -1013,6 +1033,36 @@ router.post("/payment/reservation/:reservationId/confirm", checkAuth, async (req
 })
 
 // User orders list page
+// Rubric 5.2: Theo doi don hang - khach nhap SDT hoac ma don
+router.get("/track-order", async (req, res) => {
+  try {
+    const { phone, orderCode } = req.query
+    let order = null
+    let errorMsg = ""
+
+    if (phone && orderCode) {
+      // Tìm đơn bằng SĐT + mã đơn (6 ký tự cuối của ObjectId)
+      const orderId = orderCode.toLowerCase().replace(/^#/, "")
+      order = await Order.findOne({
+        phone: phone.trim(),
+        _id: { $regex: orderId, $options: "i" }
+      })
+        .populate("userId", "name email")
+        .populate("items.dishId", "name price")
+        .populate("items.productId", "name price")
+        .populate("shipperId", "name phone")
+        .populate("branchId", "name address phone")
+
+      if (!order) errorMsg = "Không tìm thấy đơn hàng. Kiểm tra lại SĐT và mã đơn."
+    }
+
+    res.render("user/track-order", { order, phone, orderCode, errorMsg, title: "Theo Dõi Đơn Hàng" })
+  } catch (error) {
+    console.error("[restaurant] Track order error:", error)
+    res.status(500).render("error", { error: error.message, layout: false })
+  }
+})
+
 router.get("/orders", checkAuth, async (req, res) => {
   try {
     const orders = await Order.find({ userId: req.session.user.id })

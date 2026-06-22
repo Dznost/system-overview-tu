@@ -97,6 +97,12 @@ exports.getRevenue = async (req, res) => {
     const walkinPayments = payments.filter((p) => p.revenueType === "walkin_assist");
     const walkinTotal = walkinPayments.reduce((s, p) => s + (p.finalAmount || p.amount || 0), 0);
 
+    // Rubric 3.2: Thong ke theo phuong thuc thanh toan (COD vs Online)
+    const codPayments = payments.filter((p) => p.paymentMethod === "cash");
+    const onlinePayments = payments.filter((p) => p.paymentMethod === "bank" || p.paymentMethod === "transfer");
+    const codTotal = codPayments.reduce((s, p) => s + (p.finalAmount || p.amount || 0), 0);
+    const onlineTotal = onlinePayments.reduce((s, p) => s + (p.finalAmount || p.amount || 0), 0);
+
     // ── Per-receptionist breakdown ────────────────────────────────────────────
     const receptionistMap = {};
     receptionPayments.forEach((p) => {
@@ -174,9 +180,15 @@ exports.getRevenue = async (req, res) => {
 
     res.render("admin/revenue/index", {
       title: "Thong Ke Doanh Thu",
+      currentPage: "revenue",
       currentYear,
       currentMonth,
       viewType,
+      // payment method (Rubric 3.2)
+      codTotal,
+      codPayments,
+      onlineTotal,
+      onlinePayments,
       // delivery
       deliveryTotal,
       deliveryPayments,

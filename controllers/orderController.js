@@ -12,11 +12,24 @@ exports.getOrders = async (req, res) => {
     const statusFilter = req.query.status || ""
     const orderTypeFilter = req.query.orderType || ""
     const branchFilter = req.query.branchId || ""
+    const fromDate = req.query.fromDate || ""
+    const toDate = req.query.toDate || ""
 
     let query = {}
     if (statusFilter) query.status = statusFilter
     if (orderTypeFilter) query.orderType = orderTypeFilter
     if (branchFilter) query.branchId = branchFilter
+
+    // Rubric 3.1: Loc don hang theo khoang ngay
+    if (fromDate || toDate) {
+      query.createdAt = {}
+      if (fromDate) query.createdAt.$gte = new Date(fromDate)
+      if (toDate) {
+        const toDateObj = new Date(toDate)
+        toDateObj.setHours(23, 59, 59, 999)
+        query.createdAt.$lte = toDateObj
+      }
+    }
 
     if (searchQuery) {
       // Search by order code suffix, customer name or phone
@@ -63,12 +76,15 @@ exports.getOrders = async (req, res) => {
 
     res.render("admin/orders/index", {
       title: "Quan Ly Don Hang",
+      currentPage: "orders",
       orders,
       branches,
       searchQuery,
       statusFilter,
       orderTypeFilter,
       branchFilter,
+      fromDate,
+      toDate,
       success: req.query.success,
     })
   } catch (error) {
