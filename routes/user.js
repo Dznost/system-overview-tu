@@ -322,7 +322,7 @@ router.post("/reservation", checkAuth, async (req, res) => {
 })
 
 // Cart
-router.get("/cart", checkAuth, async (req, res) => {
+router.get("/cart", async (req, res) => {
   try {
     const cart = req.session.cart || []
     
@@ -350,7 +350,7 @@ router.get("/cart", checkAuth, async (req, res) => {
 })
 
 // Add to cart
-router.post("/cart/add", checkAuth, async (req, res) => {
+router.post("/cart/add", async (req, res) => {
   try {
     const { dishId, productId, quantity } = req.body
 
@@ -444,7 +444,7 @@ router.post("/cart/add", checkAuth, async (req, res) => {
   }
 })
 
-router.get("/cart/remove/:itemId", checkAuth, (req, res) => {
+router.get("/cart/remove/:itemId", (req, res) => {
   if (req.session.cart) {
     // Remove item by either dishId or productId
     req.session.cart = req.session.cart.filter((item) =>
@@ -456,7 +456,7 @@ router.get("/cart/remove/:itemId", checkAuth, (req, res) => {
 })
 
 // Update cart item quantity
-router.post("/cart/update", checkAuth, async (req, res) => {
+router.post("/cart/update", async (req, res) => {
   try {
     const { dishId, productId, quantity } = req.body
     const newQuantity = Number.parseInt(quantity, 10)
@@ -609,6 +609,9 @@ router.post("/order", async (req, res) => {
     if (!String(fullName || "").trim() || !normalizedPhone || !String(deliveryAddress || "").trim()) {
       return res.redirect("/user/checkout?error=Vui lòng nhập họ tên, số điện thoại Việt Nam hợp lệ và địa chỉ giao hàng")
     }
+    if (!["cod", "prepaid"].includes(paymentTiming)) {
+      return res.redirect("/user/checkout?error=Phương thức thanh toán không hợp lệ")
+    }
 
     if (cart.length === 0) {
       return res.status(400).render("error", { error: "Giỏ hàng trống", layout: false })
@@ -628,7 +631,11 @@ router.post("/order", async (req, res) => {
       if (item.dishId) {
         const dish = await Dish.findById(item.dishId)
         if (dish) {
-          const itemPrice = dish.price * item.quantity
+          const requestedQuantity = Number(item.quantity)
+          if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > Number(dish.quantity || 0)) {
+            return res.redirect(`/user/cart?error=${encodeURIComponent(`Món ${dish.name} không đủ số lượng`)}`)
+          }
+          const itemPrice = dish.price * requestedQuantity
           const itemDiscount = (dish.discount / 100) * itemPrice
           totalPrice += itemPrice
           totalDiscount += itemDiscount
@@ -637,7 +644,7 @@ router.post("/order", async (req, res) => {
             dishId: dish._id,
             itemType: "dish",
             name: dish.name,
-            quantity: item.quantity,
+            quantity: requestedQuantity,
             price: dish.price,
             discount: dish.discount,
           })
@@ -647,7 +654,11 @@ router.post("/order", async (req, res) => {
       else if (item.productId) {
         const product = await Product.findById(item.productId)
         if (product) {
-          const itemPrice = product.price * item.quantity
+          const requestedQuantity = Number(item.quantity)
+          if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > Number(product.quantity || 0)) {
+            return res.redirect(`/user/cart?error=${encodeURIComponent(`Sản phẩm ${product.name} không đủ số lượng`)}`)
+          }
+          const itemPrice = product.price * requestedQuantity
           const itemDiscount = (product.discount / 100) * itemPrice
           totalPrice += itemPrice
           totalDiscount += itemDiscount
@@ -656,7 +667,7 @@ router.post("/order", async (req, res) => {
             productId: product._id,
             itemType: "product",
             name: product.name,
-            quantity: item.quantity,
+            quantity: requestedQuantity,
             price: product.price,
             discount: product.discount,
           })
@@ -691,7 +702,10 @@ router.post("/order", async (req, res) => {
       }
     }
 
-    const finalPrice = totalPrice - totalDiscount - couponDiscount - loyaltyPointsUsed * 1000;
+    if (items.length !== cart.length) {
+      return res.redirect("/user/cart?error=Giỏ hàng có sản phẩm không còn tồn tại")
+    }
+    const finalPrice = Math.max(0, totalPrice - totalDiscount - couponDiscount - loyaltyPointsUsed * 1000);
 
     if (finalPrice > 10000000 && paymentTiming === "cod") {
       return res.status(400).render("error", {
@@ -749,42 +763,44 @@ router.post("/order", async (req, res) => {
       }
     }
 
-    // Rubric 5.4: Thong bao dat hang thanh cong cho khach
-    const successNotif = new Notification({
-      type: "order_created",
-      orderId: order._id,
-      userId: sessionUserId || null,
-      amount: finalPrice,
-      message: `Đơn hàng #${order._id.toString().slice(-6).toUpperCase()} đã được tạo thành công. Số tiền: ${finalPrice.toLocaleString("vi-VN")}đ`,
-      status: "unread",
-    })
-    await successNotif.save()
-
-    if (finalPrice > 100000000) {
-      const notification = new Notification({
-        type: "large_order",
+    // Account customers receive a personal notification; guest customers use the order code.
+    if (sessionUserId) {
+      await Notification.create({
+        type: "new_order",
+        category: "order",
         orderId: order._id,
-        userId: sessionUserId || null,
+        userId: sessionUserId,
         amount: finalPrice,
-        message: `Đơn hàng giá trị cao: ${finalPrice.toLocaleString("vi-VN")}đ từ khách hàng ${fullName}`,
-        userNote: largeOrderNote || "Không có yêu cầu đặc biệt",
+        message: `Đơn hàng ${order.orderCode} đã được tạo thành công. Số tiền: ${finalPrice.toLocaleString("vi-VN")}đ`,
         status: "pending",
       })
-      await notification.save()
-
-      order.adminNotified = true
-      await order.save()
-
-      console.log("[restaurant] Large order notification created:", notification._id)
     }
 
-    if (orderType === "dine-in" && branchId) {
-      const branch = await Branch.findById(branchId)
+    if (finalPrice > 100000000) {
+      const admin = await User.findOne({ role: "admin" }).select("_id")
+      if (admin) {
+        await Notification.create({
+          type: "large_order",
+          category: "order",
+          orderId: order._id,
+          userId: admin._id,
+          amount: finalPrice,
+          message: `Đơn hàng giá trị cao: ${finalPrice.toLocaleString("vi-VN")}đ từ khách hàng ${fullName}`,
+          userNote: largeOrderNote || "Không có yêu cầu đặc biệt",
+          status: "pending",
+        })
+        order.adminNotified = true
+        await order.save()
+      }
+    }
+
+    if (order.orderType === "dine-in" && order.branchId) {
+      const branch = await Branch.findById(order.branchId)
       if (branch && branch.availableTables > 0) {
         branch.availableTables -= 1
         await branch.save()
         console.log("[restaurant] Table decremented for dine-in order:", {
-          branchId,
+          branchId: order.branchId,
           remainingTables: branch.availableTables,
         })
       }
@@ -793,7 +809,7 @@ router.post("/order", async (req, res) => {
     // Auto-assign order to shipper (takeaway) or staff (dine-in)
     // Round-robin by _id: sorted low to high, find last assigned, pick next, cycle back
     try {
-      if (orderType === "takeaway") {
+      if (order.orderType === "takeaway") {
         // Get all shippers sorted by _id ascending
         const shippers = await User.find({ role: "shipper" }).select("name").sort({ _id: 1 })
         
@@ -832,7 +848,7 @@ router.post("/order", async (req, res) => {
           await shipperNotif.save()
           console.log("[restaurant] Auto-assigned takeaway order to shipper:", selectedShipper.name, "(ID index:", selectedIndex, ")")
         }
-      } else if (orderType === "dine-in") {
+      } else if (order.orderType === "dine-in") {
         // Get all staff sorted by _id ascending
         const staffMembers = await User.find({ role: "staff" }).select("name").sort({ _id: 1 })
 
@@ -1094,7 +1110,7 @@ router.post("/track-order", async (req, res) => {
         errorMsg: "Không thể xác minh lịch sử mua hàng với thông tin đã nhập.",
         success: "", remainingAttempts: failed.remaining,
         retryMinutes: Math.ceil(failed.retryAfterMs / 60000),
-        title: "Theo Dõi Đơn Hàng",
+        title: "Theo Dõi Đơn H��ng",
       })
     }
 

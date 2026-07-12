@@ -66,7 +66,7 @@ function appendHistory(order, { status, actor, note = "" }) {
   order.statusHistory.push({
     status,
     timestamp: new Date(),
-    actorId: actor && actor._id ? actor._id : null,
+    actorId: actor && (actor._id || actor.id) ? (actor._id || actor.id) : null,
     actorRole: actor && actor.role ? actor.role : "system",
     actorName: actor && actor.name ? actor.name : "Hệ thống",
     note,

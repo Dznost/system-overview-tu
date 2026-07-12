@@ -47,11 +47,7 @@
                         <strong><%= message.senderName %></strong>
                         <small><%= new Date(message.createdAt).toLocaleString('vi-VN') %></small>
                         <p><%= message.content %></p>
-</div>
-<style>
-.admin-thread{display:flex;flex-direction:column;gap:10px;margin-top:14px}.admin-message{max-width:75%;padding:12px;border-radius:10px;background:#f4f1ec}.admin-message.from-admin{margin-left:auto;background:#eee4d5}.admin-message small{display:block;color:#6b7280;margin-top:3px}.admin-message p{margin:7px 0 0}.admin-reply-form{display:flex;flex-direction:column;gap:8px;margin-top:12px}.admin-reply-form textarea{min-height:76px;border:1px solid #d5cec3;border-radius:8px;padding:10px;font:inherit}.admin-reply-form button{align-self:flex-start}
-</style>
-
+                      </div>
                     <% }) %>
                   </div>
                   <form method="POST" action="/admin/reviews/<%= review._id %>/reply" class="admin-reply-form">
@@ -91,3 +87,7 @@
     <% } %>
   </div>
 </div>
+
+<style>
+.admin-thread{display:flex;flex-direction:column;gap:10px;margin-top:14px}.admin-message{max-width:75%;padding:12px;border-radius:10px;background:#f4f1ec}.admin-message.from-admin{margin-left:auto;background:#eee4d5}.admin-message small{display:block;color:#6b7280;margin-top:3px}.admin-message p{margin:7px 0 0}.admin-reply-form{display:flex;flex-direction:column;gap:8px;margin-top:12px}.admin-reply-form textarea{min-height:76px;border:1px solid #d5cec3;border-radius:8px;padding:10px;font:inherit}.admin-reply-form button{align-self:flex-start}
+</style>

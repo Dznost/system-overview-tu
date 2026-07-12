@@ -5,20 +5,20 @@ const Branch = require("../models/Branch")
 const Dish = require("../models/Dish")
 const Notification = require("../models/Notification")
 const bcrypt = require("bcryptjs")
-const { appendHistory } = require("../utils/orderStatus")
+const { appendHistory } = require("../utils/guestOrders")
 
 // Dashboard
 exports.getDashboard = async (req, res) => {
   try {
     const staffId = req.session.user.id
 
-    const processingOrders = await Order.countDocuments({ staffId, status: "processing" })
-    const completedOrders = await Order.countDocuments({ staffId, status: "completed" })
+    const processingOrders = await Order.countDocuments({ staffId, status: { $in: ["confirmed", "preparing", "ready", "processing"] } })
+    const completedOrders = await Order.countDocuments({ staffId, status: { $in: ["served", "completed"] } })
 
     const processingReservations = await Reservation.countDocuments({ staffId, status: { $in: ["confirmed", "paid", "processing"] } })
     const completedReservations = await Reservation.countDocuments({ staffId, status: "completed" })
 
-    const activeOrders = await Order.find({ staffId, status: "processing" })
+    const activeOrders = await Order.find({ staffId, status: { $in: ["confirmed", "preparing", "ready", "processing"] } })
       .populate("userId", "name email phone")
       .populate("branchId", "name")
       .sort({ createdAt: -1 })
@@ -52,8 +52,8 @@ exports.getOrders = async (req, res) => {
     const statusFilter = req.query.status || "all"
 
     let query = { staffId }
-    if (statusFilter === "processing") query.status = "processing"
-    else if (statusFilter === "completed") query.status = "completed"
+    if (statusFilter === "processing") query.status = { $in: ["confirmed", "preparing", "ready", "processing"] }
+    else if (statusFilter === "completed") query.status = { $in: ["served", "completed"] }
 
     const orders = await Order.find(query)
       .populate("userId", "name email phone")
@@ -104,15 +104,21 @@ exports.confirmOrderCompleted = async (req, res) => {
       return res.redirect(`/staff/orders/${req.params.id}?success=false`)
     }
 
-    const order = await Order.findOne({ _id: req.params.id, staffId, status: "processing" })
+    const order = await Order.findOne({ _id: req.params.id, staffId, status: { $in: ["confirmed", "preparing", "ready", "processing"] } })
     if (!order) {
       return res.status(404).render("404", { layout: false })
     }
 
-    order.status = "completed"
+    order.status = "served"
     order.paymentStatus = "paid"
     order.confirmedBy = staffId
     order.confirmedAt = new Date()
+    order.deliveredAt = order.confirmedAt
+    appendHistory(order, {
+      status: "served",
+      actor: { id: staffId, name: req.session.user.name || "Nhân viên", role: "staff" },
+      note: "Nhân viên xác nhận đơn tại quán đã phục vụ xong.",
+    })
     await order.save()
 
     // Restore table availability when dine-in order is completed

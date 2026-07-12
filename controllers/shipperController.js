@@ -4,7 +4,7 @@ const Branch = require("../models/Branch")
 const Payment = require("../models/Payment")
 const Notification = require("../models/Notification")
 const bcrypt = require("bcryptjs")
-const { appendHistory } = require("../utils/orderStatus")
+const { appendHistory } = require("../utils/guestOrders")
 
 // Dashboard
 exports.getDashboard = async (req, res) => {
@@ -39,7 +39,7 @@ exports.getOrders = async (req, res) => {
 
     let query = { shipperId }
     if (statusFilter === "processing") query.status = { $in: ["assigned_shipper", "shipped", "processing", "shipping"] }
-    else if (statusFilter === "completed") query.status = "completed"
+    else if (statusFilter === "completed") query.status = { $in: ["delivered_success", "completed"] }
 
     const orders = await Order.find(query)
       .populate("userId", "name email phone")
@@ -60,7 +60,7 @@ exports.getOrders = async (req, res) => {
 exports.getOrderDetail = async (req, res) => {
   try {
     const shipperId = req.session.user.id
-    const order = await Order.findOne({ _id: req.params.id, shipperId, status: { $in: ["processing", "shipping", "completed"] } })
+    const order = await Order.findOne({ _id: req.params.id, shipperId, status: { $in: ["assigned_shipper", "shipped", "delivery_failed", "delivered_success", "processing", "shipping", "completed"] } })
       .populate("userId", "name email phone address")
       .populate("branchId", "name address")
 

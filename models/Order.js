@@ -75,7 +75,6 @@ const orderSchema = new mongoose.Schema({
   loyaltyPointsUsed: { type: Number, default: 0 },
   
   // Delivery and customer info
-  paymentMethod: String,
   deliveryAddress: String,
   fullName: String,
   email: String,
