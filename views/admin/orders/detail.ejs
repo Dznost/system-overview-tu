@@ -155,13 +155,7 @@
       <div class="badges">
         <span class="badge badge-type <%= order.orderType %>"><%= order.orderType === 'dine-in' ? 'An tai quan' : 'Giao hang' %></span>
         <span class="badge badge-status <%= order.status %>">
-          <%= order.status === 'pending' ? 'Cho xu ly' :
-              order.status === 'confirmed' || order.status === 'approved' ? 'Da duyet' :
-              order.status === 'paid' ? 'Da thanh toan' :
-              order.status === 'processing' ? 'Dang xu ly' :
-              order.status === 'shipping' ? 'Dang giao' :
-              order.status === 'delivered' ? 'Da giao' :
-              order.status === 'completed' ? 'Hoan thanh' : 'Da huy' %>
+          <%= ({ pending_approval: 'Chờ xác nhận', pending: 'Chờ xử lý', approved: 'Đã duyệt', confirmed: 'Đã xác nhận', paid: 'Đã thanh toán', preparing: 'Đang chuẩn bị', ready: 'Sẵn sàng', processing: 'Đang xử lý', assigned_shipper: 'Đã giao shipper', shipped: 'Đang giao', shipping: 'Đang giao', delivered_success: 'Giao thành công', delivered: 'Đã giao', served: 'Đã phục vụ', completed: 'Hoàn thành', delivery_failed: 'Giao thất bại', cancelled: 'Đã hủy' })[order.status] || order.status %>
         </span>
       </div>
     </div>
@@ -276,8 +270,25 @@
         </div>
         <% } %>
 
+        <!-- Approval workflow -->
+        <% if (order.status === 'pending_approval') { %>
+        <div class="card assign-card">
+          <h3>Xác nhận đơn hàng</h3>
+          <p>Kiểm tra thông tin khách, tồn kho và thanh toán trước khi chuyển đơn cho người xử lý.</p>
+          <div class="assign-methods">
+            <form method="POST" action="/admin/orders/<%= order._id %>/status">
+              <input type="hidden" name="status" value="approved">
+              <button type="submit" class="auto-btn" onclick="return confirm('Duyệt đơn hàng này?')">Duyệt đơn</button>
+            </form>
+            <form method="POST" action="/admin/orders/<%= order._id %>/cancel">
+              <button type="submit" class="cod-btn" onclick="return confirm('Hủy đơn và hoàn lại tồn kho?')">Từ chối và hủy đơn</button>
+            </form>
+          </div>
+        </div>
+        <% } %>
+
         <!-- Assign shipper -->
-        <% if (order.orderType === 'takeaway' && ['pending', 'approved', 'paid', 'processing'].includes(order.status) && !order.shipperId) { %>
+        <% if (order.orderType === 'takeaway' && order.status === 'approved' && !order.shipperId) { %>
         <div class="card assign-card">
           <h3>Phan Cong Shipper</h3>
           <div class="assign-methods">
@@ -299,7 +310,7 @@
         <% } %>
 
         <!-- Assign staff -->
-        <% if (order.orderType === 'dine-in' && ['pending', 'approved', 'paid', 'processing'].includes(order.status) && !order.staffId) { %>
+        <% if (order.orderType === 'dine-in' && order.status === 'approved' && !order.staffId) { %>
         <div class="card assign-card">
           <h3>Phan Cong Nhan Vien</h3>
           <div class="assign-methods">

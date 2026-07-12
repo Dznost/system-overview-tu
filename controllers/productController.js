@@ -41,11 +41,14 @@ exports.getNewProductForm = async (req, res) => {
 // Create new product
 exports.createProduct = async (req, res) => {
   try {
-    const { quantity, isHot, ...productData } = req.body;
+    const { quantity, warrantyMonths, isHot, ...productData } = req.body;
+    productData.sku = String(productData.sku || "").trim().toUpperCase();
+    productData.productType = "home-appliance";
     
     const product = new Product({
       ...productData,
-      quantity: parseInt(quantity) || 0,
+      quantity: Math.max(0, parseInt(quantity, 10) || 0),
+      warrantyMonths: Math.max(0, parseInt(warrantyMonths, 10) || 0),
       isHot: isHot === 'on' || isHot === true,
       isAutoHot: false
     });
@@ -77,7 +80,10 @@ exports.getEditProductForm = async (req, res) => {
 // Update product
 exports.updateProduct = async (req, res) => {
   try {
-    const { quantity, isHot, ...updateData } = req.body;
+    const { quantity, warrantyMonths, isHot, ...updateData } = req.body;
+    updateData.sku = String(updateData.sku || "").trim().toUpperCase();
+    updateData.productType = "home-appliance";
+    updateData.warrantyMonths = Math.max(0, parseInt(warrantyMonths, 10) || 0);
     
     if (updateData.event === '') {
       updateData.event = null;

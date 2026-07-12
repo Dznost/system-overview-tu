@@ -18,6 +18,7 @@ router.get("/", shipperController.getDashboard)
 // Orders
 router.get("/orders", shipperController.getOrders)
 router.get("/orders/:id", shipperController.getOrderDetail)
+router.post("/orders/:id/start-delivery", shipperController.startDelivery)
 router.post("/orders/:id/confirm-completed", shipperController.confirmCompleted)
 
 // Profile

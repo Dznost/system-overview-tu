@@ -4,10 +4,9 @@ const reviewSchema = new mongoose.Schema({
   orderId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Order",
-    unique: true,
-    sparse: true,
     index: true
   },
+  productSku: { type: String, trim: true, uppercase: true },
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product"
@@ -60,5 +59,14 @@ const reviewSchema = new mongoose.Schema({
     default: Date.now
   }
 })
+
+reviewSchema.index(
+  { userId: 1, productId: 1 },
+  { unique: true, partialFilterExpression: { userId: { $type: "objectId" }, productId: { $type: "objectId" } } }
+)
+reviewSchema.index(
+  { guestPhoneNormalized: 1, productId: 1 },
+  { unique: true, partialFilterExpression: { guestPhoneNormalized: { $type: "string" }, productId: { $type: "objectId" } } }
+)
 
 module.exports = mongoose.model("Review", reviewSchema)

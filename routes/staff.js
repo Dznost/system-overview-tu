@@ -18,6 +18,7 @@ router.get("/", staffController.getDashboard)
 // Orders (dine-in)
 router.get("/orders", staffController.getOrders)
 router.get("/orders/:id", staffController.getOrderDetail)
+router.post("/orders/:id/progress", staffController.updateOrderProgress)
 router.post("/orders/:id/confirm-completed", staffController.confirmOrderCompleted)
 
 // Reservations (view only - no regular booking)

@@ -89,7 +89,7 @@
                                     <% } %>
                                 </div>
 
-                                <% if (locals.isLoggedIn && product.quantity > 0) { %>
+                                <% if (product.quantity > 0) { %>
                                     <form action="/user/cart/add" method="POST" class="product-add-form">
                                         <input type="hidden" name="productId" value="<%= product._id %>">
                                         <input type="hidden" name="quantity" value="1">

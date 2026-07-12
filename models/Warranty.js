@@ -14,12 +14,26 @@ const warrantySchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true
+    default: null
   },
+  warrantyCode: { type: String, required: true, unique: true, index: true, trim: true, uppercase: true },
+  orderItemIndex: { type: Number, required: true, default: 0 },
+  unitIndex: { type: Number, required: true, default: 0 },
+  customerName: { type: String, trim: true },
+  customerPhone: { type: String, required: true, trim: true },
   warrantyPeriodMonths: {
     type: Number,
     required: true
   },
+  requestCount: { type: Number, default: 0 },
+  requests: [{
+    issueDescription: { type: String, required: true, trim: true, maxlength: 2000 },
+    serviceAddress: { type: String, required: true, trim: true, maxlength: 500 },
+    requestedAt: { type: Date, default: Date.now },
+    status: { type: String, enum: ["pending", "contacted", "in_progress", "resolved", "rejected"], default: "pending" },
+    adminNotes: { type: String, trim: true, maxlength: 2000 },
+    resolvedAt: Date
+  }],
   issueDescription: String,
   status: {
     type: String,

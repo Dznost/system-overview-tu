@@ -91,13 +91,48 @@
 
                             <div class="field-row">
                                 <div class="field-group">
+                                    <label for="sku" class="field-label">Mã sản phẩm (SKU) <span class="required">*</span></label>
+                                    <input type="text" id="sku" name="sku" value="<%= product?.sku || '' %>" placeholder="GD-NOI-001" required class="field-input" autocomplete="off">
+                                </div>
+                                <div class="field-group">
+                                    <label for="brand" class="field-label">Thương hiệu</label>
+                                    <input type="text" id="brand" name="brand" value="<%= product?.brand || '' %>" placeholder="Ví dụ: Panasonic" class="field-input">
+                                </div>
+                            </div>
+
+                            <div class="field-row">
+                                <div class="field-group">
+                                    <label for="modelNumber" class="field-label">Mã model</label>
+                                    <input type="text" id="modelNumber" name="modelNumber" value="<%= product?.modelNumber || '' %>" placeholder="Model của nhà sản xuất" class="field-input">
+                                </div>
+                                <div class="field-group">
+                                    <label for="warrantyMonths" class="field-label">Thời hạn bảo hành</label>
+                                    <div class="input-with-addon">
+                                        <input type="number" id="warrantyMonths" name="warrantyMonths" value="<%= product?.warrantyMonths || 12 %>" min="0" max="120" class="field-input">
+                                        <span class="input-addon">tháng</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="field-group">
+                                <label for="specifications" class="field-label">Thông số kỹ thuật</label>
+                                <textarea id="specifications" name="specifications" rows="3" class="field-textarea" placeholder="Công suất, điện áp, kích thước..."><%= product?.specifications || '' %></textarea>
+                            </div>
+                            <div class="field-group">
+                                <label for="warrantyTerms" class="field-label">Điều kiện bảo hành</label>
+                                <textarea id="warrantyTerms" name="warrantyTerms" rows="3" class="field-textarea" placeholder="Phạm vi và điều kiện áp dụng"><%= product?.warrantyTerms || '' %></textarea>
+                            </div>
+
+                            <input type="hidden" name="productType" value="home-appliance">
+                            <div class="field-row" style="display:none">
+                                <div class="field-group">
                                     <label for="productType" class="field-label">
                                         Loai San Pham
                                         <span class="required" aria-label="Bat buoc">*</span>
                                     </label>
                                     <div class="select-wrapper">
-                                        <select id="productType" name="productType" required class="field-select">
-                                            <option value="">-- Chon Loai San Pham --</option>
+                                        <select id="productTypeLegacy" class="field-select" disabled>
+                                            <option value="home-appliance" selected>Đồ gia dụng</option>
                                             <option value="beverage" <%= product?.productType === 'beverage' ? 'selected' : '' %>>Do Uong</option>
                                             <option value="snack" <%= product?.productType === 'snack' ? 'selected' : '' %>>Do An Nhe</option>
                                             <option value="merchandise" <%= product?.productType === 'merchandise' ? 'selected' : '' %>>Hang Hoa</option>

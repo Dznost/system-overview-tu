@@ -6,6 +6,7 @@ const Dish = require("../models/Dish")
 const Notification = require("../models/Notification")
 const bcrypt = require("bcryptjs")
 const { appendHistory } = require("../utils/guestOrders")
+const { issueWarrantiesForOrder } = require("../utils/warrantyManager")
 
 // Dashboard
 exports.getDashboard = async (req, res) => {
@@ -94,6 +95,32 @@ exports.getOrderDetail = async (req, res) => {
   }
 }
 
+// Move an assigned dine-in order through preparation in sequence.
+exports.updateOrderProgress = async (req, res) => {
+  try {
+    const staffId = req.session.user.id
+    const nextStatus = String(req.body.status || "")
+    const transitions = { confirmed: "preparing", preparing: "ready" }
+    const order = await Order.findOne({ _id: req.params.id, staffId })
+    if (!order) return res.status(404).render("404", { layout: false })
+    if (transitions[order.status] !== nextStatus) {
+      return res.redirect(`/staff/orders/${order._id}?success=invalid-status`)
+    }
+
+    order.status = nextStatus
+    appendHistory(order, {
+      status: nextStatus,
+      actor: { id: staffId, name: req.session.user.name || "Nhân viên", role: "staff" },
+      note: nextStatus === "preparing" ? "Nhân viên bắt đầu chuẩn bị đơn." : "Đơn đã sẵn sàng để phục vụ.",
+    })
+    await order.save()
+    res.redirect(`/staff/orders/${order._id}?success=${nextStatus}`)
+  } catch (error) {
+    console.error("[restaurant] Staff order progress error:", error)
+    res.status(500).render("error", { error: error.message, layout: false })
+  }
+}
+
 // Confirm order completed
 exports.confirmOrderCompleted = async (req, res) => {
   try {
@@ -104,7 +131,7 @@ exports.confirmOrderCompleted = async (req, res) => {
       return res.redirect(`/staff/orders/${req.params.id}?success=false`)
     }
 
-    const order = await Order.findOne({ _id: req.params.id, staffId, status: { $in: ["confirmed", "preparing", "ready", "processing"] } })
+    const order = await Order.findOne({ _id: req.params.id, staffId, status: "ready" })
     if (!order) {
       return res.status(404).render("404", { layout: false })
     }
@@ -120,6 +147,8 @@ exports.confirmOrderCompleted = async (req, res) => {
       note: "Nhân viên xác nhận đơn tại quán đã phục vụ xong.",
     })
     await order.save()
+    await order.populate("items.productId")
+    await issueWarrantiesForOrder(order)
 
     // Restore table availability when dine-in order is completed
     if (order.orderType === "dine-in" && order.branchId) {

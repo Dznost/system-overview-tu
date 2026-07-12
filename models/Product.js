@@ -5,7 +5,12 @@ const productSchema = new mongoose.Schema({
   description: String,
   price: { type: Number, required: true },
   image: String,
-  productType: { type: String, required: true }, // e.g., "beverage", "snack", "merchandise", etc.
+  productType: { type: String, required: true, default: "home-appliance" },
+  sku: { type: String, unique: true, sparse: true, trim: true, uppercase: true },
+  brand: { type: String, trim: true },
+  modelNumber: { type: String, trim: true },
+  specifications: { type: String, trim: true },
+  warrantyTerms: { type: String, trim: true },
   discount: { type: Number, default: 0 },
   available: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true }, // Visibility control

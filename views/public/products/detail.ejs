@@ -70,7 +70,7 @@
                         <span>So luong co san: <strong style="color: #16a34a;"><%= product.quantity %> </strong></span>
                     </div>
 
-                    <% if (locals.isLoggedIn) { %>
+                    <% if (true) { %>
                         <form action="/user/cart/add" method="POST" class="product-add-to-cart-form">
                             <input type="hidden" name="productId" value="<%= product._id %>">
                             

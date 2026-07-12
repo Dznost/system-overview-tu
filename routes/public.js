@@ -9,6 +9,7 @@ const Contact = require("../models/Contact")
 const Notification = require("../models/Notification")
 const User = require("../models/User")
 const Order = require("../models/Order")
+const warrantyController = require("../controllers/warrantyController")
 
 const contactRateLimitMap = new Map()
 
@@ -211,7 +212,7 @@ router.get("/branch/:id", async (req, res) => {
 router.get("/events", async (req, res) => {
   try {
     const events = await Event.find()
-    res.render("public/events/index", { events, title: "Sự Kiện" })
+    res.render("public/events/index", { events, title: "Sự Ki���n" })
   } catch (error) {
     res.status(500).render("error", { error: error.message, layout: false })
   }
@@ -270,11 +271,13 @@ router.get("/about", async (req, res) => {
 router.get("/contact", async (req, res) => {
   try {
     const branches = await Branch.find().select("name address")
-    res.render("public/contact/index", { title: "Lien He", branches })
+    res.render("public/contact/index", { title: "Lien He", branches, warrantySuccess: req.query.warrantySuccess, warrantyError: req.query.warrantyError })
   } catch (error) {
     res.render("public/contact/index", { title: "Lien He", branches: [] })
   }
 })
+
+router.post("/contact/warranty", warrantyController.submitRequest)
 
 router.post("/contact", async (req, res) => {
   try {

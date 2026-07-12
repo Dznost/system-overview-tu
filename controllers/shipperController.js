@@ -5,6 +5,7 @@ const Payment = require("../models/Payment")
 const Notification = require("../models/Notification")
 const bcrypt = require("bcryptjs")
 const { appendHistory } = require("../utils/guestOrders")
+const { issueWarrantiesForOrder } = require("../utils/warrantyManager")
 
 // Dashboard
 exports.getDashboard = async (req, res) => {
@@ -79,6 +80,28 @@ exports.getOrderDetail = async (req, res) => {
   }
 }
 
+// Start delivery. Only the assigned shipper can move an approved assignment forward.
+exports.startDelivery = async (req, res) => {
+  try {
+    const shipperId = req.session.user.id
+    const order = await Order.findOne({ _id: req.params.id, shipperId, status: "assigned_shipper" })
+    if (!order) return res.status(404).render("404", { layout: false })
+
+    order.status = "shipped"
+    order.shippingAt = new Date()
+    appendHistory(order, {
+      status: "shipped",
+      actor: { id: shipperId, name: req.session.user.name || "Shipper", role: "shipper" },
+      note: "Shipper đã nhận hàng và bắt đầu giao.",
+    })
+    await order.save()
+    res.redirect(`/shipper/orders/${order._id}?success=shipping`)
+  } catch (error) {
+    console.error("[restaurant] Shipper start delivery error:", error)
+    res.status(500).render("error", { error: error.message, layout: false })
+  }
+}
+
 // Confirm order completed (shipper confirms customer received the order)
 exports.confirmCompleted = async (req, res) => {
   try {
@@ -89,7 +112,7 @@ exports.confirmCompleted = async (req, res) => {
       return res.redirect(`/shipper/orders/${req.params.id}?success=false`)
     }
 
-  const order = await Order.findOne({ _id: req.params.id, shipperId, status: { $in: ["assigned_shipper", "shipped", "processing", "shipping"] } })
+  const order = await Order.findOne({ _id: req.params.id, shipperId, status: "shipped" })
   if (!order) {
   return res.status(404).render("404", { layout: false })
   }
@@ -105,6 +128,8 @@ exports.confirmCompleted = async (req, res) => {
     note: "Shipper xác nhận khách đã nhận hàng thành công.",
   })
   await order.save()
+  await order.populate("items.productId")
+  await issueWarrantiesForOrder(order)
 
     // Create a delivery payment record so revenue is tracked per shipper
     const existing = await Payment.findOne({ orderId: order._id, status: "completed" })

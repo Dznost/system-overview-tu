@@ -22,9 +22,9 @@
         <% orders.forEach(function(order) { %>
           <%
             var statusGroup = 'active';
-            if (order.status === 'completed' || order.status === 'delivered') statusGroup = 'completed';
+            if (['completed', 'delivered', 'delivered_success', 'served'].includes(order.status)) statusGroup = 'completed';
             else if (order.status === 'cancelled') statusGroup = 'cancelled';
-            else if (order.status === 'shipping') statusGroup = 'shipping';
+            else if (['shipping', 'shipped', 'assigned_shipper'].includes(order.status)) statusGroup = 'shipping';
           %>
           <div class="order-card" data-status-group="<%= statusGroup %>">
             <div class="order-header">
@@ -33,14 +33,7 @@
               </div>
               <div class="order-status">
                 <span class="status-badge status-<%= order.status %>">
-                  <%= order.status === 'pending' ? 'Cho xu ly' :
-                      order.status === 'approved' ? 'Da duyet' :
-                      order.status === 'confirmed' ? 'Da xac nhan' :
-                      order.status === 'paid' ? 'Da thanh toan' :
-                      order.status === 'processing' ? 'Dang chuan bi' :
-                      order.status === 'shipping' ? 'Dang giao hang' :
-                      order.status === 'delivered' ? 'Da giao hang' :
-                      order.status === 'completed' ? 'Hoan thanh' : 'Da huy' %>
+                  <%= ({ pending_approval: 'Chờ xác nhận', pending: 'Chờ xử lý', approved: 'Đã duyệt', confirmed: 'Đã xác nhận', paid: 'Đã thanh toán', preparing: 'Đang chuẩn bị', ready: 'Sẵn sàng', processing: 'Đang chuẩn bị', assigned_shipper: 'Đã giao shipper', shipped: 'Đang giao hàng', shipping: 'Đang giao hàng', delivered_success: 'Giao thành công', delivered: 'Đã giao hàng', served: 'Đã phục vụ', completed: 'Hoàn thành', delivery_failed: 'Giao thất bại', cancelled: 'Đã hủy' })[order.status] || order.status %>
                 </span>
               </div>
             </div>

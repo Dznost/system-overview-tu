@@ -13,6 +13,7 @@ const checkAdmin = (req, res, next) => {
 router.get("/", checkAdmin, warrantyController.getWarranties);
 router.post("/:id/claim", checkAdmin, warrantyController.claimWarranty);
 router.post("/:id/resolve", checkAdmin, warrantyController.resolveWarranty);
+router.post("/:id/requests/:requestId", checkAdmin, warrantyController.updateRequest);
 router.get("/:id/delete", checkAdmin, warrantyController.deleteWarranty);
 
 module.exports = router;

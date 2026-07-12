@@ -5,6 +5,7 @@ const Notification = require("../models/Notification");
 const Dish = require("../models/Dish");
 const inventoryManager = require("../utils/inventoryManager");
 const { appendHistory } = require("../utils/guestOrders");
+const { issueWarrantiesForOrder } = require("../utils/warrantyManager");
 
 async function getActor(req) {
   if (!req.session.user) return { role: "system", name: "Hệ thống" };
@@ -16,6 +17,21 @@ function setStatusMilestone(order, status) {
   if (["approved", "confirmed"].includes(status)) order.confirmedAt = order.confirmedAt || now;
   if (status === "shipped") order.shippingAt = order.shippingAt || now;
   if (status === "delivered_success") order.deliveredAt = order.deliveredAt || now;
+}
+
+function canAdminTransition(order, nextStatus) {
+  const transitions = {
+    pending_approval: ["approved", "cancelled"],
+    approved: ["cancelled"],
+    assigned_shipper: ["cancelled"],
+    confirmed: ["cancelled"],
+    delivery_failed: ["approved", "cancelled"],
+  };
+  return (transitions[order.status] || []).includes(nextStatus);
+}
+
+function canAssignOrder(order, targetType) {
+  return order.orderType === targetType && order.status === "approved";
 }
 
 // Get all orders
@@ -192,6 +208,9 @@ exports.updateOrderStatus = async (req, res) => {
     
     const order = await Order.findById(req.params.id);
     if (!order) return res.redirect("/admin/orders");
+    if (!canAdminTransition(order, status)) {
+      return res.redirect(`/admin/orders/${req.params.id}?success=Chuyển trạng thái không hợp lệ`);
+    }
     const actor = await getActor(req);
     order.status = status;
     setStatusMilestone(order, status);
@@ -237,6 +256,7 @@ exports.completeCODPayment = async (req, res) => {
         note: order.orderType === "takeaway" ? "Đã giao hàng và thu tiền COD thành công." : "Đơn hàng đã hoàn tất phục vụ.",
       });
       await order.save();
+      await issueWarrantiesForOrder(order);
       
       // Increment order count for each item in the completed order
       for (const item of order.items) {
@@ -265,6 +285,9 @@ exports.assignToShipper = async (req, res) => {
 
     if (!order) {
       return res.redirect("/admin/orders");
+    }
+    if (!canAssignOrder(order, "takeaway")) {
+      return res.redirect(`/admin/orders/${req.params.id}?success=Chỉ phân công đơn giao hàng đã được duyệt`);
     }
 
     // Verify shipper exists and has shipper role
@@ -311,6 +334,9 @@ exports.assignToStaff = async (req, res) => {
     if (!order) {
       return res.redirect("/admin/orders");
     }
+    if (!canAssignOrder(order, "dine-in")) {
+      return res.redirect(`/admin/orders/${req.params.id}?success=Chỉ phân công đơn tại quán đã được duyệt`);
+    }
 
     const staff = await User.findOne({ _id: staffId, role: { $in: ["staff", "reception"] } });
     if (!staff) {
@@ -351,6 +377,9 @@ exports.autoAssignToStaff = async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) {
       return res.redirect("/admin/orders");
+    }
+    if (!canAssignOrder(order, "dine-in")) {
+      return res.redirect(`/admin/orders/${req.params.id}?success=Chỉ phân công đơn tại quán đã được duyệt`);
     }
 
     // Get all staff sorted by _id ascending
@@ -440,12 +469,15 @@ exports.cancelOrder = async (req, res) => {
 // Auto-assign order to shipper (round-robin by _id, low to high, cycle back)
 exports.autoAssignToShipper = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) {
-      return res.redirect("/admin/orders");
-    }
-
-    // Get all shippers sorted by _id ascending
+  const order = await Order.findById(req.params.id);
+  if (!order) {
+  return res.redirect("/admin/orders");
+  }
+  if (!canAssignOrder(order, "takeaway")) {
+  return res.redirect(`/admin/orders/${req.params.id}?success=Chỉ phân công đơn giao hàng đã được duyệt`);
+  }
+  
+  // Get all shippers sorted by _id ascending
     var shippers = await User.find({ role: "shipper" }).select("name").sort({ _id: 1 });
 
     if (shippers.length === 0) {

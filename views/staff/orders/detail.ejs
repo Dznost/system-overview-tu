@@ -109,13 +109,21 @@
                     </div>
                 </div>
 
-                <% if (order.status === 'processing') { %>
+                <% if (order.status === 'confirmed' || order.status === 'preparing') { %>
                 <div class="detail-card confirm-card">
-                    <h3>Xac Nhan Hoan Thanh</h3>
-                    <p class="confirm-note">Vui long xac nhan khi khach hang da thanh toan va hoan tat don hang. Hanh dong nay khong the hoan tac.</p>
-                    <button type="button" class="btn btn-success btn-block" id="confirmBtn">
-                        Xac Nhan Hoan Thanh Don Hang
-                    </button>
+                    <h3><%= order.status === 'confirmed' ? 'Bắt đầu chuẩn bị' : 'Xác nhận sẵn sàng' %></h3>
+                    <p class="confirm-note">Cập nhật đúng tiến độ để khách hàng theo dõi được trạng thái thực tế.</p>
+                    <form method="POST" action="/staff/orders/<%= order._id %>/progress">
+                        <input type="hidden" name="status" value="<%= order.status === 'confirmed' ? 'preparing' : 'ready' %>">
+                        <button type="submit" class="btn btn-primary btn-block"><%= order.status === 'confirmed' ? 'Bắt đầu chuẩn bị' : 'Đơn đã sẵn sàng' %></button>
+                    </form>
+                </div>
+                <% } %>
+                <% if (order.status === 'ready') { %>
+                <div class="detail-card confirm-card">
+                    <h3>Xác nhận đã phục vụ</h3>
+                    <p class="confirm-note">Chỉ xác nhận khi khách đã nhận đủ hàng và hoàn tất thanh toán.</p>
+                    <button type="button" class="btn btn-success btn-block" id="confirmBtn">Xác nhận đã phục vụ</button>
                 </div>
                 <% } %>
             </div>
@@ -123,7 +131,7 @@
     </div>
 </section>
 
-<% if (order.status === 'processing') { %>
+<% if (order.status === 'ready') { %>
 <div class="modal-overlay" id="confirmModal" style="display:none">
     <div class="modal-content">
         <h3>Xac Nhan Hoan Thanh Don Hang</h3>

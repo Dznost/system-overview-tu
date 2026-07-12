@@ -101,13 +101,20 @@
                     </div>
                 </div>
 
-                <% if (order.status === 'processing' || order.status === 'shipping') { %>
+                <% if (order.status === 'assigned_shipper') { %>
                 <div class="detail-card confirm-card">
-                    <h3>Xac Nhan Hoan Thanh</h3>
-                    <p class="confirm-note">Xac nhan khi khach hang da nhan hang va thanh toan day du. Hanh dong nay khong the hoan tac.</p>
-                    <button type="button" class="btn btn-success btn-block" id="confirmBtn">
-                        Xac Nhan Hoan Thanh Don Hang
-                    </button>
+                    <h3>Bắt đầu giao hàng</h3>
+                    <p class="confirm-note">Chỉ xác nhận sau khi bạn đã nhận đủ hàng của đơn này.</p>
+                    <form method="POST" action="/shipper/orders/<%= order._id %>/start-delivery">
+                        <button type="submit" class="btn btn-primary btn-block">Đã nhận hàng, bắt đầu giao</button>
+                    </form>
+                </div>
+                <% } %>
+                <% if (order.status === 'shipped') { %>
+                <div class="detail-card confirm-card">
+                    <h3>Xác nhận giao thành công</h3>
+                    <p class="confirm-note">Xác nhận khi khách hàng đã nhận hàng và hoàn tất nghĩa vụ thanh toán.</p>
+                    <button type="button" class="btn btn-success btn-block" id="confirmBtn">Xác nhận giao thành công</button>
                 </div>
                 <% } %>
             </div>
@@ -115,7 +122,7 @@
     </div>
 </section>
 
-<% if (order.status === 'processing' || order.status === 'shipping') { %>
+<% if (order.status === 'shipped') { %>
 <div class="modal-overlay" id="confirmModal" style="display:none">
     <div class="modal-content">
         <h3>Xac Nhan Hoan Thanh Don Hang</h3>
