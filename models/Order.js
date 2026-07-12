@@ -1,7 +1,10 @@
 const mongoose = require("mongoose")
 
 const orderSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  orderCode: { type: String, unique: true, sparse: true, index: true },
+  customerPhoneNormalized: { type: String, index: true, default: null },
+  isGuestCheckout: { type: Boolean, default: false },
   items: [
     {
       dishId: { type: mongoose.Schema.Types.ObjectId, ref: "Dish" },
@@ -83,6 +86,16 @@ const orderSchema = new mongoose.Schema({
   largeOrderNote: String, // Special request from user for orders > 100M
   confirmedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   confirmedAt: Date,
+  shippingAt: Date,
+  deliveredAt: Date,
+  statusHistory: [{
+    status: String,
+    timestamp: { type: Date, default: Date.now },
+    actorId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    actorRole: { type: String, default: "system" },
+    actorName: { type: String, default: "Hệ thống" },
+    note: { type: String, maxlength: 500, default: "" },
+  }],
   rating: { type: Number, min: 1, max: 5 },
   ratingComment: String,
   ratedAt: Date,

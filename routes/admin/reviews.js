@@ -14,5 +14,6 @@ router.get("/", checkAdmin, reviewController.getReviews);
 router.post("/:id/approve", checkAdmin, reviewController.approveReview);
 router.post("/:id/reject", checkAdmin, reviewController.rejectReview);
 router.get("/:id/delete", checkAdmin, reviewController.deleteReview);
+router.post("/:id/reply", checkAdmin, reviewController.replyToReview);
 
 module.exports = router;

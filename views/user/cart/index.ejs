@@ -223,10 +223,36 @@
                 </div>
             </div>
         <% } %>
+        <section class="history-lookup" aria-labelledby="history-title">
+            <div>
+                <span class="history-kicker">Không cần tài khoản</span>
+                <h2 id="history-title">Tra cứu lịch sử đặt hàng</h2>
+                <p>Nhập số điện thoại đã dùng khi đặt hàng để xem trạng thái và lịch sử mua hàng. Tối đa 5 lần thử không thành công trong 15 phút.</p>
+            </div>
+            <form method="POST" action="/user/track-order" class="history-form">
+                <label for="historyPhone">Số điện thoại đặt hàng</label>
+                <div class="history-form-row">
+                    <input id="historyPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Ví dụ: 0912 345 678" required>
+                    <button type="submit" class="btn btn-primary">Tra cứu đơn</button>
+                </div>
+                <small>Thông tin chỉ được dùng để tìm đơn hàng đã liên kết với số điện thoại này.</small>
+            </form>
+        </section>
     </div>
 </section>
 
 <style>
+.history-lookup { margin-top: 32px; display: flex; justify-content: space-between; gap: 32px; align-items: center; padding: 28px; border: 1px solid #ded7cc; border-radius: 16px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.04); }
+.history-lookup > div, .history-form { flex: 1; }
+.history-kicker { display: inline-block; color: #8b6f47; font-weight: 700; margin-bottom: 8px; }
+.history-lookup h2 { color: #1f2937; margin: 0 0 8px; }
+.history-lookup p, .history-form small { color: #6b7280; line-height: 1.6; }
+.history-form label { display: block; color: #1f2937; font-weight: 700; margin-bottom: 8px; }
+.history-form-row { display: flex; gap: 10px; }
+.history-form-row input { flex: 1; min-width: 0; border: 1px solid #cfc7bc; border-radius: 8px; padding: 12px 14px; font: inherit; }
+.history-form small { display: block; margin-top: 8px; }
+@media (max-width: 768px) { .history-lookup, .history-form-row { flex-direction: column; align-items: stretch; } }
+
 /* Cart Page Styles - Luxury Restaurant Theme */
 .cart-page {
     padding: 40px 0 80px;

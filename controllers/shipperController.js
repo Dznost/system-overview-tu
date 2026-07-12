@@ -4,16 +4,17 @@ const Branch = require("../models/Branch")
 const Payment = require("../models/Payment")
 const Notification = require("../models/Notification")
 const bcrypt = require("bcryptjs")
+const { appendHistory } = require("../utils/orderStatus")
 
 // Dashboard
 exports.getDashboard = async (req, res) => {
   try {
     const shipperId = req.session.user.id
 
-    const processingCount = await Order.countDocuments({ shipperId, status: { $in: ["processing", "shipping"] } })
-    const completedCount = await Order.countDocuments({ shipperId, status: "completed" })
+    const processingCount = await Order.countDocuments({ shipperId, status: { $in: ["assigned_shipper", "shipped", "processing", "shipping"] } })
+    const completedCount = await Order.countDocuments({ shipperId, status: { $in: ["delivered_success", "completed"] } })
 
-    const activeOrders = await Order.find({ shipperId, status: { $in: ["processing", "shipping"] } })
+    const activeOrders = await Order.find({ shipperId, status: { $in: ["assigned_shipper", "shipped", "processing", "shipping"] } })
       .populate("userId", "name email phone")
       .sort({ createdAt: -1 })
       .limit(10)
@@ -37,7 +38,7 @@ exports.getOrders = async (req, res) => {
     const statusFilter = req.query.status || "all"
 
     let query = { shipperId }
-    if (statusFilter === "processing") query.status = { $in: ["processing", "shipping"] }
+    if (statusFilter === "processing") query.status = { $in: ["assigned_shipper", "shipped", "processing", "shipping"] }
     else if (statusFilter === "completed") query.status = "completed"
 
     const orders = await Order.find(query)
@@ -88,16 +89,22 @@ exports.confirmCompleted = async (req, res) => {
       return res.redirect(`/shipper/orders/${req.params.id}?success=false`)
     }
 
-    const order = await Order.findOne({ _id: req.params.id, shipperId, status: { $in: ["processing", "shipping"] } })
-    if (!order) {
-      return res.status(404).render("404", { layout: false })
-    }
+  const order = await Order.findOne({ _id: req.params.id, shipperId, status: { $in: ["assigned_shipper", "shipped", "processing", "shipping"] } })
+  if (!order) {
+  return res.status(404).render("404", { layout: false })
+  }
 
-    order.status = "completed"
-    order.paymentStatus = "paid"
-    order.confirmedBy = shipperId
-    order.confirmedAt = new Date()
-    await order.save()
+  order.status = "delivered_success"
+  order.paymentStatus = "paid"
+  order.confirmedBy = shipperId
+  order.confirmedAt = new Date()
+  order.deliveredAt = order.confirmedAt
+  appendHistory(order, {
+    status: "delivered_success",
+    actor: { id: shipperId, name: req.session.user.name || "Shipper", role: "shipper" },
+    note: "Shipper xác nhận khách đã nhận hàng thành công.",
+  })
+  await order.save()
 
     // Create a delivery payment record so revenue is tracked per shipper
     const existing = await Payment.findOne({ orderId: order._id, status: "completed" })

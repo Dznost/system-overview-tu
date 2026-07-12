@@ -4,6 +4,19 @@ const User = require("../models/User");
 const Notification = require("../models/Notification");
 const Dish = require("../models/Dish");
 const inventoryManager = require("../utils/inventoryManager");
+const { appendHistory } = require("../utils/guestOrders");
+
+async function getActor(req) {
+  if (!req.session.user) return { role: "system", name: "Hệ thống" };
+  return await User.findById(req.session.user.id).select("name role") || req.session.user;
+}
+
+function setStatusMilestone(order, status) {
+  const now = new Date();
+  if (["approved", "confirmed"].includes(status)) order.confirmedAt = order.confirmedAt || now;
+  if (status === "shipped") order.shippingAt = order.shippingAt || now;
+  if (status === "delivered_success") order.deliveredAt = order.deliveredAt || now;
+}
 
 // Get all orders
 exports.getOrders = async (req, res) => {
@@ -137,14 +150,16 @@ exports.getOrderDetail = async (req, res) => {
       };
     }
 
-    // Build timeline
-    const timeline = [];
-    timeline.push({ event: "Don hang duoc tao", time: order.createdAt, status: "created" });
-    if (order.paidAt) timeline.push({ event: "Thanh toan thanh cong", time: order.paidAt, status: "paid" });
-    if (order.shipperId) timeline.push({ event: "Giao cho shipper: " + (order.shipperId.name || ""), time: order.updatedAt, status: "assigned" });
-    if (order.staffId) timeline.push({ event: "Giao cho nhan vien: " + (order.staffId.name || ""), time: order.updatedAt, status: "assigned" });
-    if (order.confirmedAt) timeline.push({ event: "Xac nhan hoan thanh boi " + (order.confirmedBy?.name || ""), time: order.confirmedAt, status: "completed" });
-    if (order.ratedAt) timeline.push({ event: "Khach hang danh gia " + order.rating + " sao", time: order.ratedAt, status: "rated" });
+    // Prefer immutable status history; infer a minimal history for legacy orders.
+    const timeline = (order.statusHistory || []).map((entry) => ({
+      event: entry.note || entry.status,
+      time: entry.timestamp,
+      status: entry.status,
+      actorName: entry.actorName,
+      actorRole: entry.actorRole,
+    }));
+    if (timeline.length === 0) timeline.push({ event: "Đơn hàng được tạo", time: order.createdAt, status: "created" });
+    if (order.paidAt) timeline.push({ event: "Thanh toán thành công", time: order.paidAt, status: "paid" });
     timeline.sort((a, b) => new Date(a.time) - new Date(b.time));
 
     // Get all shippers for assignment (no branch filter)
@@ -175,7 +190,14 @@ exports.updateOrderStatus = async (req, res) => {
     const { status } = req.body;
     console.log("[restaurant] Updating order status:", req.params.id, status);
     
-    await Order.findByIdAndUpdate(req.params.id, { status });
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.redirect("/admin/orders");
+    const actor = await getActor(req);
+    order.status = status;
+    setStatusMilestone(order, status);
+    if (["approved", "confirmed"].includes(status)) order.confirmedBy = actor._id || null;
+    appendHistory(order, { status, actor, note: `Trạng thái được cập nhật thành ${status}.` });
+    await order.save();
     
     res.redirect(`/admin/orders/${req.params.id}?success=Cập nhật thành công`);
   } catch (error) {
@@ -206,8 +228,14 @@ exports.completeCODPayment = async (req, res) => {
       await payment.save();
       
       order.paymentStatus = "paid";
-      order.status = "completed";
+      order.status = order.orderType === "takeaway" ? "delivered_success" : "served";
       order.paidAt = new Date();
+      order.deliveredAt = order.orderType === "takeaway" ? order.paidAt : order.deliveredAt;
+      appendHistory(order, {
+        status: order.status,
+        actor: await getActor(req),
+        note: order.orderType === "takeaway" ? "Đã giao hàng và thu tiền COD thành công." : "Đơn hàng đã hoàn tất phục vụ.",
+      });
       await order.save();
       
       // Increment order count for each item in the completed order
@@ -246,7 +274,14 @@ exports.assignToShipper = async (req, res) => {
     }
 
     order.shipperId = shipperId;
-    order.status = "processing";
+    order.assignedShipperId = shipperId;
+    order.assignedAt = new Date();
+    order.status = "assigned_shipper";
+    appendHistory(order, {
+      status: "assigned_shipper",
+      actor: await getActor(req),
+      note: `Đã chuyển đơn cho shipper ${shipper.name}.`,
+    });
     await order.save();
 
     // Create notification for shipper
@@ -283,7 +318,13 @@ exports.assignToStaff = async (req, res) => {
     }
 
     order.staffId = staffId;
-    order.status = "processing";
+    order.assignedAt = new Date();
+    order.status = "confirmed";
+    appendHistory(order, {
+      status: "confirmed",
+      actor: await getActor(req),
+      note: `Đã chuyển đơn cho ${staff.role === "reception" ? "lễ tân" : "nhân viên"} ${staff.name}.`,
+    });
     await order.save();
 
     const roleLabel = staff.role === "reception" ? "le tan" : "nhan vien";
@@ -333,7 +374,9 @@ exports.autoAssignToStaff = async (req, res) => {
     var selectedStaff = staffMembers[selectedIndex];
 
     order.staffId = selectedStaff._id;
-    order.status = "processing";
+    order.assignedAt = new Date();
+    order.status = "confirmed";
+    appendHistory(order, { status: "confirmed", actor: await getActor(req), note: `Đã tự động chuyển đơn cho nhân viên ${selectedStaff.name}.` });
     await order.save();
 
     var notification = new Notification({
@@ -423,7 +466,10 @@ exports.autoAssignToShipper = async (req, res) => {
     var selectedShipper = shippers[selectedIndex];
 
     order.shipperId = selectedShipper._id;
-    order.status = "processing";
+    order.assignedShipperId = selectedShipper._id;
+    order.assignedAt = new Date();
+    order.status = "assigned_shipper";
+    appendHistory(order, { status: "assigned_shipper", actor: await getActor(req), note: `Đã tự động chuyển đơn cho shipper ${selectedShipper.name}.` });
     await order.save();
 
     var notification = new Notification({

@@ -19,6 +19,7 @@ exports.getReviews = async (req, res) => {
 
     const reviews = await Review.find(query)
       .populate("userId", "name email")
+      .populate("orderId", "orderCode status fullName phone")
       .populate("productId", "name")
       .populate("dishId", "name")
       .sort({ createdAt: -1 });
@@ -164,6 +165,27 @@ exports.getItemReviews = async (req, res) => {
   } catch (error) {
     console.error("[restaurant] Error in getItemReviews:", error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+exports.replyToReview = async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.id);
+    if (!review) return res.redirect("/admin/reviews?error=Khong tim thay danh gia");
+    const content = String(req.body.content || "").trim().slice(0, 1000);
+    if (!content) return res.redirect("/admin/reviews?error=Noi dung phan hoi khong duoc de trong");
+    review.messages.push({
+      senderRole: "admin",
+      senderId: req.session.user.id,
+      senderName: req.session.user.name || "Quản trị viên",
+      content,
+    });
+    review.updatedAt = new Date();
+    await review.save();
+    res.redirect(`/admin/reviews?success=Da phan hoi danh gia cua don hang`);
+  } catch (error) {
+    console.error("[restaurant] Error replying to review:", error);
+    res.redirect("/admin/reviews?error=Khong the gui phan hoi");
   }
 };
 

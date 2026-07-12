@@ -8,6 +8,18 @@ const Branch = require("../models/Branch")
 const Dish = require("../models/Dish")
 const Event = require("../models/Event")
 const Notification = require("../models/Notification")
+const Product = require("../models/Product")
+const Review = require("../models/Review")
+const {
+  normalizePhone,
+  orderCode,
+  getLimit,
+  recordFailure,
+  clearFailures,
+  grantGuestAccess,
+  hasGuestAccess,
+  appendHistory,
+} = require("../utils/guestOrders")
 
 // Middleware to check if user is logged in
 const checkAuth = (req, res, next) => {
@@ -494,7 +506,7 @@ router.post("/cart/update", checkAuth, async (req, res) => {
 })
 
 // Checkout
-router.get("/checkout", checkAuth, async (req, res) => {
+router.get("/checkout", async (req, res) => {
   try {
     const cart = req.session.cart || []
 
@@ -557,7 +569,6 @@ router.get("/checkout", checkAuth, async (req, res) => {
     // Rubric 5.5: Lay diem loyalty cua khach dang nhap
     let loyaltyPoints = 0
     if (req.session.user && req.session.user.id) {
-      const User = require("../models/User")
       const user = await User.findById(req.session.user.id)
       loyaltyPoints = user && user.loyaltyPoints ? user.loyaltyPoints : 0
     }
@@ -569,6 +580,8 @@ router.get("/checkout", checkAuth, async (req, res) => {
       finalTotal,
       isCODRestricted,
       loyaltyPoints,
+      checkoutUser: req.session.user || null,
+      checkoutError: req.query.error || null,
     })
   } catch (error) {
     console.error("[restaurant] Error in checkout:", error)
@@ -576,7 +589,7 @@ router.get("/checkout", checkAuth, async (req, res) => {
   }
 })
 
-router.post("/order", checkAuth, async (req, res) => {
+router.post("/order", async (req, res) => {
   try {
     const {
       deliveryAddress,
@@ -590,6 +603,12 @@ router.post("/order", checkAuth, async (req, res) => {
       loyaltyPointsToUse,
     } = req.body
     const cart = req.session.cart || []
+    const normalizedPhone = normalizePhone(phone)
+    const sessionUserId = req.session.user && req.session.user.id
+
+    if (!String(fullName || "").trim() || !normalizedPhone || !String(deliveryAddress || "").trim()) {
+      return res.redirect("/user/checkout?error=Vui lòng nhập họ tên, số điện thoại Việt Nam hợp lệ và địa chỉ giao hàng")
+    }
 
     if (cart.length === 0) {
       return res.status(400).render("error", { error: "Giỏ hàng trống", layout: false })
@@ -601,8 +620,8 @@ router.post("/order", checkAuth, async (req, res) => {
     let loyaltyPointsUsed = 0
     const items = []
 
-    // Get user for loyalty points
-    const user = await User.findById(req.session.user.id)
+    // Loyalty is available only for authenticated customers.
+    const user = sessionUserId ? await User.findById(sessionUserId) : null
 
     for (const item of cart) {
       // Handle dish
@@ -682,7 +701,10 @@ router.post("/order", checkAuth, async (req, res) => {
     }
 
     const order = new Order({
-      userId: req.session.user.id,
+      userId: sessionUserId || null,
+      orderCode: `DH${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      customerPhoneNormalized: normalizedPhone,
+      isGuestCheckout: !sessionUserId,
       items,
       orderType: "takeaway",
       orderFor: "customer",
@@ -701,8 +723,17 @@ router.post("/order", checkAuth, async (req, res) => {
       largeOrderNote: largeOrderNote || null,
       status: "pending_approval",
     })
+    appendHistory(order, {
+      status: "pending_approval",
+      actor: user || { role: "customer", name: String(fullName).trim() },
+      note: "Đơn hàng đã được tiếp nhận và đang chờ xác nhận.",
+    })
 
     await order.save()
+    if (!sessionUserId) {
+      grantGuestAccess(req, normalizedPhone)
+      req.session.guestOrderIds = [...new Set([...(req.session.guestOrderIds || []), order._id.toString()])]
+    }
 
     // Rubric 1.1: Dat hang thanh cong thi so luong hang hoa bi tru
     const inventoryManager = require("../utils/inventoryManager")
@@ -722,7 +753,7 @@ router.post("/order", checkAuth, async (req, res) => {
     const successNotif = new Notification({
       type: "order_created",
       orderId: order._id,
-      userId: req.session.user.id,
+      userId: sessionUserId || null,
       amount: finalPrice,
       message: `Đơn hàng #${order._id.toString().slice(-6).toUpperCase()} đã được tạo thành công. Số tiền: ${finalPrice.toLocaleString("vi-VN")}đ`,
       status: "unread",
@@ -733,7 +764,7 @@ router.post("/order", checkAuth, async (req, res) => {
       const notification = new Notification({
         type: "large_order",
         orderId: order._id,
-        userId: req.session.user.id,
+        userId: sessionUserId || null,
         amount: finalPrice,
         message: `Đơn hàng giá trị cao: ${finalPrice.toLocaleString("vi-VN")}đ từ khách hàng ${fullName}`,
         userNote: largeOrderNote || "Không có yêu cầu đặc biệt",
@@ -781,7 +812,14 @@ router.post("/order", checkAuth, async (req, res) => {
           
           const selectedShipper = shippers[selectedIndex]
           order.shipperId = selectedShipper._id
-          order.status = "processing"
+          order.assignedShipperId = selectedShipper._id
+          order.assignedAt = new Date()
+          order.status = "assigned_shipper"
+          appendHistory(order, {
+            status: "assigned_shipper",
+            actor: selectedShipper,
+            note: `Đơn hàng đã được chuyển cho shipper ${selectedShipper.name}.`,
+          })
           await order.save()
 
           const shipperNotif = new Notification({
@@ -833,21 +871,24 @@ router.post("/order", checkAuth, async (req, res) => {
     req.session.cart = []
 
     if (paymentTiming === "cod") {
-      res.redirect("/user/profile?success=Đặt hàng thành công! Thanh toán khi nhận hàng")
-    } else {
-      res.redirect(`/user/payment/order/${order._id}`)
+      return res.redirect(sessionUserId
+        ? "/user/profile?success=Đặt hàng thành công! Thanh toán khi nhận hàng"
+        : `/user/track-order/${order.orderCode}?success=Đặt hàng thành công`)
     }
+    res.redirect(`/user/payment/order/${order._id}`)
   } catch (error) {
     res.status(500).render("error", { error: error.message, layout: false })
   }
 })
 
-router.get("/payment/order/:orderId", checkAuth, async (req, res) => {
+router.get("/payment/order/:orderId", async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId).populate("userId").populate("branchId")
 
     if (!order) return res.status(404).render("404", { layout: false })
-    if (order.userId._id.toString() !== req.session.user.id) {
+    const ownsOrder = Boolean(req.session.user && order.userId && order.userId._id.toString() === req.session.user.id)
+    const guestOwnsOrder = (req.session.guestOrderIds || []).includes(order._id.toString())
+    if (!ownsOrder && !guestOwnsOrder) {
       return res.status(403).render("error", { error: "Không có quyền truy cập", layout: false })
     }
 
@@ -866,7 +907,7 @@ router.get("/payment/order/:orderId", checkAuth, async (req, res) => {
   }
 })
 
-router.post("/payment/order/:orderId/confirm", checkAuth, async (req, res) => {
+router.post("/payment/order/:orderId/confirm", async (req, res) => {
   try {
     const { paymentMethod } = req.body
     if (!['bank', 'cash'].includes(paymentMethod)) {
@@ -875,7 +916,9 @@ router.post("/payment/order/:orderId/confirm", checkAuth, async (req, res) => {
 
     const order = await Order.findById(req.params.orderId).populate("items.dishId").populate("items.productId")
     if (!order) return res.status(404).render("404", { layout: false })
-    if (order.userId.toString() !== req.session.user.id) {
+    const ownsOrder = Boolean(req.session.user && order.userId && order.userId.toString() === req.session.user.id)
+    const guestOwnsOrder = (req.session.guestOrderIds || []).includes(order._id.toString())
+    if (!ownsOrder && !guestOwnsOrder) {
       return res.status(403).render("error", { error: "Không có quyền truy cập", layout: false })
     }
     if (order.paymentStatus === "paid" || await Payment.exists({ orderId: order._id, status: "completed" })) {
@@ -931,7 +974,10 @@ router.post("/payment/order/:orderId/confirm", checkAuth, async (req, res) => {
       if (item.itemType === "product" && item.productId) await inventoryManager.incrementProductOrderCount(item.productId._id)
     }
 
-    res.redirect("/user/profile?success=Thanh toán thành công!")
+    res.redirect(order.userId
+      ? "/user/profile?success=Thanh toán thành công!"
+      : `/user/track-order/${order.orderCode}?success=Thanh toán thành công`)
+
   } catch (error) {
     console.error("[restaurant] Payment confirmation error:", error)
     res.status(500).render("error", { error: "Không thể xác nhận thanh toán. Vui lòng thử lại.", layout: false })
@@ -1010,34 +1056,147 @@ router.post("/payment/reservation/:reservationId/confirm", checkAuth, async (req
   }
 })
 
-// User orders list page
-// Rubric 5.2: Theo doi don hang - khach nhap SDT hoac ma don
+// Guest order history lookup. The response is deliberately generic on failure.
 router.get("/track-order", async (req, res) => {
+  const limit = getLimit(req)
+  res.render("user/track-order", {
+    orders: [], order: null, review: null,
+    errorMsg: req.query.error || "", success: req.query.success || "",
+    remainingAttempts: limit.remaining,
+    retryMinutes: Math.ceil(limit.retryAfterMs / 60000),
+    title: "Theo Dõi Đơn Hàng",
+  })
+})
+
+router.post("/track-order", async (req, res) => {
   try {
-    const { phone, orderCode } = req.query
-    let order = null
-    let errorMsg = ""
-
-    if (phone && orderCode) {
-      // Tìm đơn bằng SĐT + mã đơn (6 ký tự cuối của ObjectId)
-      const orderId = orderCode.toLowerCase().replace(/^#/, "")
-      order = await Order.findOne({
-        phone: phone.trim(),
-        _id: { $regex: orderId, $options: "i" }
+    const limit = getLimit(req)
+    if (limit.locked) {
+      return res.status(429).render("user/track-order", {
+        orders: [], order: null, review: null,
+        errorMsg: `Bạn đã thử quá nhiều lần. Vui lòng thử lại sau ${Math.max(1, Math.ceil(limit.retryAfterMs / 60000))} phút.`,
+        success: "", remainingAttempts: 0,
+        retryMinutes: Math.max(1, Math.ceil(limit.retryAfterMs / 60000)),
+        title: "Theo Dõi Đơn Hàng",
       })
-        .populate("userId", "name email")
-        .populate("items.dishId", "name price")
-        .populate("items.productId", "name price")
-        .populate("shipperId", "name phone")
-        .populate("branchId", "name address phone")
-
-      if (!order) errorMsg = "Không tìm thấy đơn hàng. Kiểm tra lại SĐT và mã đơn."
     }
 
-    res.render("user/track-order", { order, phone, orderCode, errorMsg, title: "Theo Dõi Đơn Hàng" })
+    const phone = normalizePhone(req.body.phone)
+    const orders = phone ? await Order.find({ customerPhoneNormalized: phone })
+      .populate("shipperId", "name role")
+      .populate("staffId", "name role")
+      .sort({ createdAt: -1 }).limit(25) : []
+
+    if (!phone || orders.length === 0) {
+      const failed = recordFailure(req)
+      return res.status(404).render("user/track-order", {
+        orders: [], order: null, review: null,
+        errorMsg: "Không thể xác minh lịch sử mua hàng với thông tin đã nhập.",
+        success: "", remainingAttempts: failed.remaining,
+        retryMinutes: Math.ceil(failed.retryAfterMs / 60000),
+        title: "Theo Dõi Đơn Hàng",
+      })
+    }
+
+    clearFailures(req)
+    grantGuestAccess(req, phone)
+    res.render("user/track-order", {
+      orders, order: null, review: null, errorMsg: "",
+      success: `Đã tìm thấy ${orders.length} đơn hàng gần đây.`,
+      remainingAttempts: 5, retryMinutes: 0,
+      title: "Lịch Sử Mua Hàng",
+    })
   } catch (error) {
     console.error("[restaurant] Track order error:", error)
-    res.status(500).render("error", { error: error.message, layout: false })
+    res.status(500).render("error", { error: "Không thể tra cứu đơn hàng", layout: false })
+  }
+})
+
+router.get("/track-order/:code", async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderCode: String(req.params.code).toUpperCase() })
+      .populate("shipperId", "name role")
+      .populate("staffId", "name role")
+      .populate("confirmedBy", "name role")
+    if (!order) return res.status(404).render("404", { layout: false })
+
+    const ownsOrder = Boolean(req.session.user && order.userId && order.userId.toString() === req.session.user.id)
+    const guestOwnsOrder = hasGuestAccess(req, order.customerPhoneNormalized) || (req.session.guestOrderIds || []).includes(order._id.toString())
+    if (!ownsOrder && !guestOwnsOrder) return res.redirect("/user/track-order?error=Vui lòng xác minh số điện thoại trước")
+
+    const review = await Review.findOne({ orderId: order._id })
+    res.render("user/track-order", {
+      orders: [], order, review,
+      errorMsg: req.query.error || "", success: req.query.success || "",
+      remainingAttempts: getLimit(req).remaining, retryMinutes: 0,
+      title: `Đơn ${orderCode(order)}`,
+    })
+  } catch (error) {
+    res.status(500).render("error", { error: "Không thể tải đơn hàng", layout: false })
+  }
+})
+
+router.post("/track-order/:code/review", async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderCode: String(req.params.code).toUpperCase() })
+    if (!order) return res.status(404).render("404", { layout: false })
+
+    const phone = normalizePhone(req.body.phone)
+    const ownsOrder = Boolean(req.session.user && order.userId && order.userId.toString() === req.session.user.id)
+    const verifiedGuest = phone && phone === order.customerPhoneNormalized
+    if (!ownsOrder && !verifiedGuest) {
+      return res.redirect(`/user/track-order/${order.orderCode}?error=Số điện thoại hoặc mã đơn không chính xác`)
+    }
+    if (order.status !== "delivered_success") {
+      return res.redirect(`/user/track-order/${order.orderCode}?error=Chỉ có thể đánh giá sau khi giao hàng thành công`)
+    }
+
+    const rating = Number(req.body.rating)
+    const content = String(req.body.comment || "").trim().slice(0, 1000)
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5 || content.length < 2) {
+      return res.redirect(`/user/track-order/${order.orderCode}?error=Vui lòng chọn 1-5 sao và nhập nội dung đánh giá`)
+    }
+    if (await Review.exists({ orderId: order._id })) {
+      return res.redirect(`/user/track-order/${order.orderCode}?error=Đơn hàng này đã được đánh giá`)
+    }
+
+    await Review.create({
+      orderId: order._id,
+      userId: order.userId || null,
+      guestPhoneNormalized: order.userId ? null : order.customerPhoneNormalized,
+      customerName: order.fullName || "Khách hàng",
+      rating, comment: content, verifiedPurchase: true, status: "approved",
+      messages: [{ senderRole: "customer", senderId: order.userId || null, senderName: order.fullName || "Khách hàng", content }],
+    })
+    order.rating = rating
+    order.ratingComment = content
+    order.ratedAt = new Date()
+    await order.save()
+    if (verifiedGuest) grantGuestAccess(req, phone)
+    res.redirect(`/user/track-order/${order.orderCode}?success=Cảm ơn bạn đã đánh giá đơn hàng`)
+  } catch (error) {
+    console.error("[restaurant] Guest review error:", error)
+    res.status(500).render("error", { error: "Không thể lưu đánh giá", layout: false })
+  }
+})
+
+router.post("/track-order/:code/reply", async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderCode: String(req.params.code).toUpperCase() })
+    if (!order) return res.status(404).render("404", { layout: false })
+    const ownsOrder = Boolean(req.session.user && order.userId && order.userId.toString() === req.session.user.id)
+    const guestOwnsOrder = hasGuestAccess(req, order.customerPhoneNormalized)
+    if (!ownsOrder && !guestOwnsOrder) return res.status(403).render("error", { error: "Không có quyền phản hồi", layout: false })
+    const content = String(req.body.content || "").trim().slice(0, 1000)
+    if (!content) return res.redirect(`/user/track-order/${order.orderCode}?error=Nội dung phản hồi không được để trống`)
+    const review = await Review.findOne({ orderId: order._id })
+    if (!review) return res.redirect(`/user/track-order/${order.orderCode}?error=Chưa có đánh giá cho đơn hàng`)
+    review.messages.push({ senderRole: "customer", senderId: order.userId || null, senderName: order.fullName || "Khách hàng", content })
+    review.updatedAt = new Date()
+    await review.save()
+    res.redirect(`/user/track-order/${order.orderCode}?success=Đã gửi phản hồi`)
+  } catch (error) {
+    res.status(500).render("error", { error: "Không thể gửi phản hồi", layout: false })
   }
 })
 

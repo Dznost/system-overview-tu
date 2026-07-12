@@ -5,6 +5,7 @@ const Branch = require("../models/Branch")
 const Dish = require("../models/Dish")
 const Notification = require("../models/Notification")
 const bcrypt = require("bcryptjs")
+const { appendHistory } = require("../utils/orderStatus")
 
 // Dashboard
 exports.getDashboard = async (req, res) => {

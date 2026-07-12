@@ -1,96 +1,88 @@
-<section class="checkout-section">
-  <div class="container">
-    <h1>Theo Dõi Đơn Hàng</h1>
+<% const statusLabels = { pending_approval: 'Chờ xác nhận', approved: 'Đã xác nhận', assigned_shipper: 'Đã giao shipper', shipped: 'Đang giao', delivered_success: 'Giao thành công', delivery_failed: 'Giao thất bại', cancelled: 'Đã hủy', confirmed: 'Đã xác nhận', preparing: 'Đang chuẩn bị', ready: 'Sẵn sàng', served: 'Đã phục vụ' }; %>
+<main class="tracking-page">
+  <div class="tracking-shell">
+    <header class="tracking-header">
+      <span class="eyebrow">Lịch sử mua hàng</span>
+      <h1><%= order ? `Theo dõi đơn ${order.orderCode || '#' + order._id.toString().slice(-8).toUpperCase()}` : 'Tra cứu đơn hàng của bạn' %></h1>
+      <p><%= order ? 'Xem tiến trình xử lý, nhân sự phụ trách và trao đổi về đơn hàng.' : 'Nhập số điện thoại đã dùng khi đặt hàng. Bạn có tối đa 5 lần thử không thành công trong 15 phút.' %></p>
+    </header>
 
-    <div class="checkout-content">
-      <div class="order-summary" style="max-width: 600px; margin: 0 auto;">
-        <h2>Tìm Kiếm Đơn Hàng</h2>
+    <% if (errorMsg) { %><div class="notice notice-error" role="alert"><%= errorMsg %></div><% } %>
+    <% if (success) { %><div class="notice notice-success" role="status"><%= success %></div><% } %>
 
-        <% if (errorMsg) { %>
-          <div class="alert alert-danger" style="padding: 15px; margin-bottom: 20px; background: #ffebee; color: #c62828; border-radius: 8px;">
-            <%= errorMsg %>
-          </div>
-        <% } %>
-
-        <form method="GET" action="/user/track-order" class="checkout-form">
-          <div class="form-group">
-            <label for="phone">Số Điện Thoại Đặt Hàng *</label>
-            <input type="tel" id="phone" name="phone" placeholder="Nhập số điện thoại" required value="<%= phone || '' %>">
-          </div>
-
-          <div class="form-group">
-            <label for="orderCode">Mã Đơn Hàng (6 ký tự cuối) *</label>
-            <input type="text" id="orderCode" name="orderCode" placeholder="VD: ABC123" maxlength="6" required value="<%= orderCode || '' %>" style="text-transform: uppercase;">
-          </div>
-
-          <button type="submit" class="btn btn-primary btn-lg">Tìm Kiếm</button>
+    <% if (!order && (!orders || orders.length === 0)) { %>
+      <section class="lookup-card" aria-labelledby="lookup-title">
+        <div>
+          <h2 id="lookup-title">Tìm lịch sử theo số điện thoại</h2>
+          <p>Kết quả chỉ hiển thị thông tin đơn hàng, không hiển thị dữ liệu tài khoản.</p>
+        </div>
+        <form method="POST" action="/user/track-order" class="lookup-form">
+          <label for="phone">Số điện thoại đặt hàng</label>
+          <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="0912 345 678" required>
+          <button class="primary-button" type="submit">Tra cứu lịch sử</button>
+          <small>Còn <strong><%= remainingAttempts %></strong> lần thử.<% if (retryMinutes) { %> Thử lại sau <%= retryMinutes %> phút.<% } %></small>
         </form>
+      </section>
+    <% } %>
 
-        <% if (order) { %>
-          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-            <h3>Thông Tin Đơn Hàng</h3>
+    <% if (orders && orders.length > 0) { %>
+      <section class="order-list" aria-label="Danh sách đơn hàng">
+        <% orders.forEach(item => { %>
+          <a class="order-row" href="/user/track-order/<%= item.orderCode %>">
+            <div><strong><%= item.orderCode || '#' + item._id.toString().slice(-8).toUpperCase() %></strong><span><%= new Date(item.createdAt).toLocaleString('vi-VN') %></span></div>
+            <div><span class="status-pill"><%= statusLabels[item.status] || item.status %></span><strong><%= Number(item.finalPrice || 0).toLocaleString('vi-VN') %>đ</strong></div>
+          </a>
+        <% }) %>
+      </section>
+    <% } %>
 
-            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-              <p><strong>Mã Đơn:</strong> #<%= order._id.toString().slice(-6).toUpperCase() %></p>
-              <p><strong>Ngày Đặt:</strong> <%= new Date(order.createdAt).toLocaleDateString('vi-VN') %></p>
-              <p><strong>Loại Đơn:</strong> 
-                <% if (order.orderType === 'dine-in') { %>
-                  Ăn Tại Quán
-                <% } else { %>
-                  Mang Về
-                <% } %>
-              </p>
-              <p><strong>Tổng Tiền:</strong> <%= order.finalPrice.toLocaleString('vi-VN') %>đ</p>
-            </div>
-
-            <div style="margin-bottom: 20px;">
-              <h4>Trạng Thái</h4>
-              <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <span class="badge" style="background: <%= order.status === 'pending' ? '#ff9800' : '#4caf50' %>; color: white; padding: 8px 12px; border-radius: 4px;">
-                  <%= order.status.toUpperCase() %>
-                </span>
-                <span class="badge" style="background: <%= order.paymentStatus === 'paid' ? '#4caf50' : '#ff9800' %>; color: white; padding: 8px 12px; border-radius: 4px;">
-                  Thanh toán: <%= order.paymentStatus.toUpperCase() %>
-                </span>
-              </div>
-            </div>
-
-            <% if (order.items && order.items.length > 0) { %>
-              <div style="margin-bottom: 20px;">
-                <h4>Các Mặt Hàng</h4>
-                <table class="cart-table" style="width: 100%; border-collapse: collapse;">
-                  <thead>
-                    <tr style="border-bottom: 2px solid #e0e0e0;">
-                      <th style="text-align: left; padding: 10px;">Tên</th>
-                      <th style="text-align: center; padding: 10px;">SL</th>
-                      <th style="text-align: right; padding: 10px;">Giá</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <% order.items.forEach(item => { %>
-                      <tr style="border-bottom: 1px solid #e0e0e0;">
-                        <td style="padding: 10px;"><%= item.name || 'N/A' %></td>
-                        <td style="text-align: center; padding: 10px;"><%= item.quantity %></td>
-                        <td style="text-align: right; padding: 10px;"><%= (item.price * item.quantity).toLocaleString('vi-VN') %>đ</td>
-                      </tr>
-                    <% }); %>
-                  </tbody>
-                </table>
-              </div>
-            <% } %>
-
-            <% if (order.shipperId) { %>
-              <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <h4>Shipper Giao Hàng</h4>
-                <p><strong><%= order.shipperId.name %></strong></p>
-                <p><%= order.shipperId.phone %></p>
-              </div>
-            <% } %>
-
-            <a href="/" class="btn btn-secondary" style="margin-top: 20px;">Quay Lại Trang Chủ</a>
+    <% if (order) { %>
+      <div class="detail-grid">
+        <section class="detail-card">
+          <div class="card-heading"><div><span class="eyebrow">Tổng quan</span><h2>Thông tin đơn hàng</h2></div><span class="status-pill"><%= statusLabels[order.status] || order.status %></span></div>
+          <dl class="order-facts">
+            <div><dt>Ngày đặt</dt><dd><%= new Date(order.createdAt).toLocaleString('vi-VN') %></dd></div>
+            <div><dt>Thanh toán</dt><dd><%= order.paymentStatus === 'paid' ? 'Đã thanh toán' : (order.paymentTiming === 'cod' ? 'Thanh toán khi nhận' : 'Chờ thanh toán') %></dd></div>
+            <div><dt>Người nhận</dt><dd><%= order.fullName || 'Khách hàng' %></dd></div>
+            <div><dt>Tổng tiền</dt><dd><%= Number(order.finalPrice || 0).toLocaleString('vi-VN') %>đ</dd></div>
+          </dl>
+          <div class="items-list">
+            <% (order.items || []).forEach(item => { %><div><span><%= item.name %> × <%= item.quantity %></span><strong><%= Number(item.price * item.quantity).toLocaleString('vi-VN') %>đ</strong></div><% }) %>
           </div>
-        <% } %>
+        </section>
+
+        <section class="detail-card">
+          <span class="eyebrow">Tiến trình</span><h2>Lịch sử xử lý</h2>
+          <ol class="timeline">
+            <% const history = order.statusHistory && order.statusHistory.length ? order.statusHistory : [{ status: 'created', timestamp: order.createdAt, actorName: 'Hệ thống', actorRole: 'system', note: 'Đơn hàng đã được tạo.' }]; %>
+            <% history.forEach(entry => { %>
+              <li><span class="timeline-dot"></span><div><strong><%= statusLabels[entry.status] || entry.status %></strong><time><%= new Date(entry.timestamp).toLocaleString('vi-VN') %></time><p><%= entry.note || '' %></p><small><%= entry.actorName || 'Hệ thống' %> · <%= entry.actorRole || 'system' %></small></div></li>
+            <% }) %>
+          </ol>
+          <% if (order.shipperId || order.staffId) { %><div class="assignee"><span>Người phụ trách</span><strong><%= (order.shipperId && order.shipperId.name) || (order.staffId && order.staffId.name) %></strong><small><%= order.shipperId ? 'Shipper' : 'Nhân viên' %></small></div><% } %>
+        </section>
       </div>
-    </div>
+
+      <section class="conversation-card">
+        <div class="card-heading"><div><span class="eyebrow">Phản hồi riêng</span><h2>Đánh giá và trao đổi</h2></div><% if (review) { %><strong><%= review.rating %>/5 sao</strong><% } %></div>
+        <% if (review) { %>
+          <div class="thread">
+            <% (review.messages || []).forEach(message => { %><article class="message <%= message.senderRole === 'admin' ? 'message-admin' : '' %>"><div><strong><%= message.senderName %></strong><time><%= new Date(message.createdAt).toLocaleString('vi-VN') %></time></div><p><%= message.content %></p></article><% }) %>
+          </div>
+          <form method="POST" action="/user/track-order/<%= order.orderCode %>/reply" class="reply-form"><label for="content">Gửi phản hồi tiếp theo</label><textarea id="content" name="content" maxlength="1000" required></textarea><button class="primary-button" type="submit">Gửi phản hồi</button></form>
+        <% } else if (order.status === 'delivered_success') { %>
+          <form method="POST" action="/user/track-order/<%= order.orderCode %>/review" class="review-form">
+            <% if (!order.userId) { %><label for="reviewPhone">Xác minh số điện thoại</label><input id="reviewPhone" name="phone" type="tel" inputmode="tel" required><% } %>
+            <label for="rating">Đánh giá đơn hàng</label><select id="rating" name="rating" required><option value="">Chọn số sao</option><option value="5">5 - Tuyệt vời</option><option value="4">4 - Tốt</option><option value="3">3 - Bình thường</option><option value="2">2 - Chưa tốt</option><option value="1">1 - Rất tệ</option></select>
+            <label for="comment">Nội dung</label><textarea id="comment" name="comment" maxlength="1000" required></textarea><button class="primary-button" type="submit">Gửi đánh giá</button>
+          </form>
+        <% } else { %><p class="muted">Bạn có thể đánh giá sau khi đơn được giao thành công.</p><% } %>
+      </section>
+      <a class="back-link" href="/user/track-order">Tra cứu số điện thoại khác</a>
+    <% } %>
   </div>
-</section>
+</main>
+
+<style>
+.tracking-page{min-height:100vh;background:#f8f6f3;padding:48px 20px 80px;color:#25221e}.tracking-shell{max-width:1100px;margin:auto}.tracking-header{max-width:700px;margin-bottom:28px}.tracking-header h1{font-size:clamp(2rem,5vw,3.3rem);margin:8px 0 12px;line-height:1.1}.tracking-header p,.muted{color:#6b645d;line-height:1.6}.eyebrow{color:#8b6f47;font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.notice{padding:14px 16px;border-radius:10px;margin-bottom:18px}.notice-error{background:#f9e9e6;color:#8a2921}.notice-success{background:#e9f2e7;color:#305f2e}.lookup-card,.detail-card,.conversation-card,.order-list{background:#fff;border:1px solid #ded7cc;border-radius:16px;box-shadow:0 6px 20px rgba(50,40,25,.05)}.lookup-card{display:flex;gap:40px;align-items:center;justify-content:space-between;padding:28px}.lookup-card>div,.lookup-form{flex:1}.lookup-form,.review-form,.reply-form{display:flex;flex-direction:column;gap:10px}.lookup-form input,.review-form input,.review-form select,.review-form textarea,.reply-form textarea{border:1px solid #cfc7bc;border-radius:9px;padding:12px 14px;font:inherit}.primary-button{border:0;border-radius:9px;background:#8b6f47;color:#fff;padding:13px 18px;font:inherit;font-weight:800;cursor:pointer}.order-list{overflow:hidden}.order-row{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 24px;color:#25221e;text-decoration:none;border-bottom:1px solid #ebe5dc}.order-row:last-child{border:0}.order-row>div{display:flex;flex-direction:column;gap:6px}.order-row>div:last-child{align-items:flex-end}.order-row span{color:#6b645d}.status-pill{display:inline-flex;padding:6px 10px;border-radius:999px;background:#f0e8dc;color:#725636!important;font-size:.82rem;font-weight:800}.detail-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:20px}.detail-card,.conversation-card{padding:26px}.card-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.card-heading h2,.detail-card h2{margin:6px 0 18px}.order-facts{display:grid;grid-template-columns:1fr 1fr;gap:16px}.order-facts div{padding:14px;background:#f8f6f3;border-radius:10px}.order-facts dt{color:#6b645d;font-size:.82rem}.order-facts dd{font-weight:800;margin:5px 0 0}.items-list{margin-top:20px;border-top:1px solid #e6e0d7}.items-list div{display:flex;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid #eee9e2}.timeline{list-style:none;padding:0;margin:0}.timeline li{display:grid;grid-template-columns:18px 1fr;gap:12px;position:relative;padding-bottom:22px}.timeline li:not(:last-child):before{content:'';position:absolute;left:5px;top:13px;bottom:0;border-left:2px solid #ded7cc}.timeline-dot{width:12px;height:12px;border-radius:50%;background:#8b6f47;margin-top:4px;z-index:1}.timeline time,.timeline small{display:block;color:#746e67;font-size:.8rem;margin-top:4px}.timeline p{margin:6px 0;color:#514b45}.assignee{padding:14px;background:#f0e8dc;border-radius:10px;display:flex;flex-direction:column;gap:4px}.conversation-card{margin-top:20px}.thread{display:flex;flex-direction:column;gap:12px;margin:18px 0}.message{max-width:80%;background:#f8f6f3;border-radius:12px;padding:14px}.message-admin{margin-left:auto;background:#f0e8dc}.message>div{display:flex;justify-content:space-between;gap:14px}.message time{font-size:.75rem;color:#746e67}.message p{margin:8px 0 0;line-height:1.55}.reply-form,.review-form{max-width:620px;margin-top:20px}.back-link{display:inline-block;color:#725636;font-weight:800;margin-top:22px}@media(max-width:760px){.lookup-card,.detail-grid{display:flex;flex-direction:column}.lookup-card{align-items:stretch}.order-row{align-items:flex-start}.order-facts{grid-template-columns:1fr}.message{max-width:92%}}
+</style>

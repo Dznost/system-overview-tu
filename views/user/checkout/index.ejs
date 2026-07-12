@@ -65,9 +65,18 @@
             </div>
 
             <form method="POST" action="/user/order" class="checkout-form" id="checkoutForm">
-                <h2>Thong Tin Dat Mon</h2>
-                
-                <p style="color: #666; margin-bottom: 20px;">Don hang cua ban se duoc giao hang mang ve. De dat ban tai nha hang, vui long su dung chuc nang dat ban.</p>
+                <h2>Thông Tin Đặt Món</h2>
+
+                <% if (checkoutError) { %>
+                    <div class="payment-restriction-warning"><strong>Chưa thể đặt hàng:</strong> <%= checkoutError %></div>
+                <% } %>
+                <% if (!checkoutUser) { %>
+                    <div class="guest-checkout-note">
+                        <strong>Đặt hàng không cần tài khoản</strong>
+                        <p>Số điện thoại của bạn sẽ liên kết đơn hàng và lịch sử mua hàng để tra cứu sau này.</p>
+                    </div>
+                <% } %>
+                <p style="color: #666; margin-bottom: 20px;">Đơn hàng của bạn sẽ được giao tận nơi. Vui lòng nhập thông tin chính xác để nhân viên xác nhận.</p>
 
                 <div class="form-section-title">Thong Tin Giao Hang</div>
                     <div class="form-group">
@@ -115,17 +124,17 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="fullName">Ho va Ten <span class="required">*</span></label>
-                        <input type="text" id="fullName" name="fullName" placeholder="Nhap ho va ten" required>
+                        <input type="text" id="fullName" name="fullName" placeholder="Nhập họ và tên" autocomplete="name" required value="<%= checkoutUser ? (checkoutUser.name || '') : '' %>">
                     </div>
                     <div class="form-group">
                         <label for="phone">So Dien Thoai <span class="required">*</span></label>
-                        <input type="tel" id="phone" name="phone" placeholder="Nhap so dien thoai" required>
+                        <input type="tel" id="phone" name="phone" placeholder="Ví dụ: 0912 345 678" inputmode="tel" autocomplete="tel" required value="<%= checkoutUser ? (checkoutUser.phone || '') : '' %>">
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="email">Email <span class="required">*</span></label>
-                    <input type="email" id="email" name="email" placeholder="Nhap email" required>
+                    <label for="email">Email <span class="info-text">(không bắt buộc)</span></label>
+                    <input type="email" id="email" name="email" autocomplete="email" placeholder="email@example.com" value="<%= checkoutUser ? (checkoutUser.email || '') : '' %>">
                 </div>
                 
                 <div class="form-group">
@@ -149,13 +158,15 @@
                     <input type="text" id="couponCode" name="couponCode" placeholder="VD: SUMMER2024" maxlength="50" style="text-transform: uppercase;">
                 </div>
 
-                <div class="form-group">
-                    <label for="loyaltyPointsToUse">Dung Diem Tich Luy (Neu Co) - 1 Diem = 1,000d</label>
-                    <input type="number" id="loyaltyPointsToUse" name="loyaltyPointsToUse" placeholder="So diem muon su dung" min="0" max="<%= typeof loyaltyPoints !== 'undefined' ? loyaltyPoints : 0 %>">
-                    <% if (typeof loyaltyPoints !== 'undefined' && loyaltyPoints > 0) { %>
-                        <p class="info-text">Ban hien co <strong><%= loyaltyPoints %></strong> diem tich luy (tuong duong: <%= (loyaltyPoints * 1000).toLocaleString('vi-VN') %>d)</p>
-                    <% } %>
-                </div>
+                <% if (checkoutUser) { %>
+                    <div class="form-group">
+                        <label for="loyaltyPointsToUse">Dùng điểm tích lũy (1 điểm = 1.000đ)</label>
+                        <input type="number" id="loyaltyPointsToUse" name="loyaltyPointsToUse" placeholder="Số điểm muốn sử dụng" min="0" max="<%= typeof loyaltyPoints !== 'undefined' ? loyaltyPoints : 0 %>">
+                        <% if (typeof loyaltyPoints !== 'undefined' && loyaltyPoints > 0) { %>
+                            <p class="info-text">Bạn hiện có <strong><%= loyaltyPoints %></strong> điểm tích lũy.</p>
+                        <% } %>
+                    </div>
+                <% } %>
                 
                 <div class="checkout-actions">
                     <a href="/user/cart" class="btn btn-secondary">Quay Lai Gio Hang</a>
@@ -210,6 +221,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
+.guest-checkout-note { margin-bottom: 20px; padding: 16px; border: 1px solid #d6c6ae; border-radius: 10px; background: #f8f6f3; color: #2c2c2c; }
+.guest-checkout-note p { margin: 6px 0 0; color: #666; line-height: 1.5; }
 .checkout-section {
     padding: 40px 0;
     background: #f8f6f3;
