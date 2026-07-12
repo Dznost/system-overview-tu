@@ -1,8 +1,8 @@
 <section class="admin-section">
     <div class="container">
         <div class="section-header">
-            <h1>Quan Ly San Pham</h1>
-            <a href="/admin/products/new" class="btn btn-primary">Them San Pham Moi</a>
+            <div><span class="section-kicker">Danh mục bán lẻ</span><h1>Quản lý đồ gia dụng</h1><p class="section-subtitle">Quản lý SKU, tồn kho, giá bán và chính sách bảo hành.</p></div>
+            <a href="/admin/products/new" class="btn btn-primary">Thêm đồ gia dụng</a>
         </div>
 
         <% if (typeof success !== 'undefined' && success) { %>
@@ -15,10 +15,10 @@
                     <thead>
                         <tr>
                             <th>Hinh Anh</th>
-                            <th>Ten</th>
-                            <th>Mo Ta</th>
-                            <th>Gia</th>
-                            <th>Loai</th>
+                            <th>Sản phẩm</th>
+                            <th>SKU / Model</th>
+                            <th>Giá</th>
+                            <th>Bảo hành</th>
                             <th>Giam Gia</th>
                             <th>So Luong</th>
                             <th>Trang Thai</th>
@@ -35,10 +35,8 @@
                                          style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;"
                                          onerror="this.src='https://images.unsplash.com/photo-1572521886200-c4e2a1ad4c0e?w=60&h=60&fit=crop'">
                                 </td>
-                                <td><strong><%= product.name %></strong></td>
-                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                    <%= product.description %>
-                                </td>
+                                <td><strong><%= product.name %></strong><br><small><%= product.brand || 'Chưa có thương hiệu' %></small></td>
+                                <td><strong><%= product.sku || 'Chưa cấp SKU' %></strong><br><small><%= product.modelNumber || '—' %></small></td>
                                 <td>
                                     <% const eventDiscount = product.event ? product.event.discount : 0; %>
                                     <% const finalDiscount = eventDiscount || product.discount; %>
@@ -56,11 +54,7 @@
                                         <strong><%= product.price.toLocaleString('vi-VN') %>đ</strong>
                                     <% } %>
                                 </td>
-                                <td>
-                                    <span class="product-type-badge" style="background: #e0e7ff; color: #3730a3;">
-                                        <%= product.productType %>
-                                    </span>
-                                </td>
+                                <td><span class="product-type-badge"><%= product.warrantyMonths || 0 %> tháng</span></td>
                                 <td>
                                     <% if (product.event) { %>
                                         <span class="discount-badge" style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);">

@@ -12,11 +12,43 @@
 
         <!-- Tabs -->
         <div class="contact-tabs">
-            <button class="tab-btn active" onclick="switchTab('feedback')">Gui Phan Hoi</button>
+            <button class="tab-btn active" data-tab="feedback" onclick="switchTab('feedback')">Gui Phan Hoi</button>
+            <button class="tab-btn" data-tab="warranty" onclick="switchTab('warranty')">Yeu Cau Bao Hanh</button>
             <% if (isLoggedIn && !isAdmin && !(typeof isShipper !== 'undefined' && isShipper) && !(typeof isStaff !== 'undefined' && isStaff)) { %>
-            <button class="tab-btn" onclick="switchTab('shipper')">Dang Ky Lam Shipper</button>
-            <button class="tab-btn" onclick="switchTab('staff')">Dang Ky Lam Nhan Vien</button>
+            <button class="tab-btn" data-tab="shipper" onclick="switchTab('shipper')">Dang Ky Lam Shipper</button>
+            <button class="tab-btn" data-tab="staff" onclick="switchTab('staff')">Dang Ky Lam Nhan Vien</button>
             <% } %>
+        </div>
+
+        <!-- Warranty tab -->
+        <div class="tab-content" id="tab-warranty" style="display:none">
+            <div class="warranty-request-section">
+                <div class="warranty-info">
+                    <h3>Yeu Cau Bao Hanh</h3>
+                    <p>Neu san pham con trong thoi han bao hanh, vui long nhap ma bao hanh va so dien thoai de gui yeu cau.</p>
+                    <% if (typeof warrantyError !== 'undefined' && warrantyError) { %>
+                        <div class="alert alert-error" style="margin-top:16px"><%= warrantyError %></div>
+                    <% } %>
+                    <% if (typeof warrantySuccess !== 'undefined' && warrantySuccess) { %>
+                        <div class="alert alert-success" style="margin-top:16px"><%= warrantySuccess %></div>
+                    <% } %>
+                </div>
+                <form class="contact-form" method="POST" action="/contact/warranty">
+                    <label for="warrantyCode">Ma bao hanh <span style="color:#dc2626">*</span></label>
+                    <input type="text" id="warrantyCode" name="warrantyCode" placeholder="VD: BH12345678" required style="text-transform:uppercase">
+                    
+                    <label for="warrantyPhone">So dien thoai <span style="color:#dc2626">*</span></label>
+                    <input type="tel" id="warrantyPhone" name="phone" placeholder="0912345678" required>
+                    
+                    <label for="serviceAddress">Dia chi yeu cau bao hanh <span style="color:#dc2626">*</span></label>
+                    <input type="text" id="serviceAddress" name="serviceAddress" placeholder="Dia chi cu the" required>
+                    
+                    <label for="issueDescription">Mo ta van de <span style="color:#dc2626">*</span></label>
+                    <textarea id="issueDescription" name="issueDescription" rows="5" placeholder="Chi tiet tinh trang san pham..." required></textarea>
+                    
+                    <button type="submit" class="btn btn-primary">Gui Yeu Cau Bao Hanh</button>
+                </form>
+            </div>
         </div>
 
         <!-- Feedback tab -->
@@ -130,7 +162,9 @@
     .tab-btn:hover { border-color: #8B6F47; color: #8B6F47; }
     .tab-btn.active { background: #8B6F47; color: white; border-color: #8B6F47; }
 
-    .shipper-apply-section { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+    .shipper-apply-section,.warranty-request-section { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+    .warranty-info h3 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #2c2c2c; margin-bottom: 12px; }
+    .warranty-info p { color: #666; line-height: 1.6; margin-bottom: 16px; }
     .apply-info h3 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #2c2c2c; margin-bottom: 12px; }
     .apply-info p { color: #666; line-height: 1.6; margin-bottom: 16px; }
     .apply-benefits { list-style: none; padding: 0; }
@@ -146,7 +180,7 @@
     .contact-form select:focus { outline: none; border-color: #8B6F47; box-shadow: 0 0 0 3px rgba(139,111,71,0.1); }
 
     @media (max-width: 768px) {
-        .shipper-apply-section { grid-template-columns: 1fr; }
+        .shipper-apply-section,.warranty-request-section { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -157,6 +191,13 @@ function switchTab(tab) {
     for (var i = 0; i < tabs.length; i++) { tabs[i].style.display = 'none'; }
     for (var i = 0; i < btns.length; i++) { btns[i].classList.remove('active'); }
     document.getElementById('tab-' + tab).style.display = 'block';
-    event.target.classList.add('active');
+    var activeButton = document.querySelector('[data-tab="' + tab + '"]');
+    if (activeButton) activeButton.classList.add('active');
 }
+(function(){
+  var hash = window.location.hash;
+  if (hash === '#warranty-service') {
+    switchTab('warranty');
+  }
+})();
 </script>

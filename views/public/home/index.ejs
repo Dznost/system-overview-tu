@@ -151,7 +151,7 @@
                                     <span itemprop="price"><%= dish.price.toLocaleString('vi-VN') %></span>
                                     <meta itemprop="priceCurrency" content="VND">d
                                 </span>
-                                <% if (locals.isLoggedIn) { %>
+                                <% if (dish.quantity > 0) { %>
                                     <form action="/user/cart/add" method="POST" class="add-cart-form">
                                         <input type="hidden" name="dishId" value="<%= dish._id %>">
                                         <input type="hidden" name="quantity" value="1">
@@ -230,7 +230,7 @@
                                         <span style="font-weight: 600;"><%= product.price.toLocaleString('vi-VN') %>d</span>
                                     <% } %>
                                 </span>
-                                <% if (locals.isLoggedIn && product.quantity > 0) { %>
+                                <% if (product.quantity > 0) { %>
                                     <form action="/user/cart/add" method="POST" class="add-cart-form">
                                         <input type="hidden" name="productId" value="<%= product._id %>">
                                         <input type="hidden" name="quantity" value="1">
@@ -304,7 +304,7 @@
                                     <strong><%= product.price.toLocaleString('vi-VN') %>d</strong>
                                 <% } %>
                             </span>
-                            <% if (locals.isLoggedIn && product.quantity > 0) { %>
+                            <% if (product.quantity > 0) { %>
                                 <form action="/user/cart/add" method="POST">
                                     <input type="hidden" name="productId" value="<%= product._id %>">
                                     <input type="hidden" name="quantity" value="1">

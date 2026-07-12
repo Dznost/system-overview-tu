@@ -114,10 +114,20 @@ exports.updateProduct = async (req, res) => {
 // Delete product
 exports.deleteProduct = async (req, res) => {
   try {
+    const Order = require("../models/Order");
+    const Warranty = require("../models/Warranty");
+    const hasSales = await Order.exists({ "items.productId": req.params.id });
+    const hasWarranties = await Warranty.exists({ productId: req.params.id });
+
+    if (hasSales || hasWarranties) {
+      await Product.findByIdAndUpdate(req.params.id, { isActive: false, available: false });
+      return res.redirect("/admin/products?success=Sản phẩm đã phát sinh giao dịch nên được chuyển sang ngừng bán thay vì xóa");
+    }
+
     await Product.findByIdAndDelete(req.params.id);
-    res.redirect("/admin/products?success=Xóa thành công");
+    res.redirect("/admin/products?success=Xóa sản phẩm thành công");
   } catch (error) {
     console.error(error);
-    res.redirect("/admin/products");
+    res.redirect("/admin/products?error=Không thể xóa sản phẩm");
   }
 };

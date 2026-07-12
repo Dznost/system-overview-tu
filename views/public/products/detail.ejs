@@ -70,8 +70,7 @@
                         <span>So luong co san: <strong style="color: #16a34a;"><%= product.quantity %> </strong></span>
                     </div>
 
-                    <% if (true) { %>
-                        <form action="/user/cart/add" method="POST" class="product-add-to-cart-form">
+                    <form action="/user/cart/add" method="POST" class="product-add-to-cart-form">
                             <input type="hidden" name="productId" value="<%= product._id %>">
                             
                             <div class="quantity-selector">
@@ -90,12 +89,7 @@
                                 </svg>
                                 Them Vao Gio Hang
                             </button>
-                        </form>
-                    <% } else { %>
-                        <div class="login-required-notice">
-                            <p>Hay <a href="/login">dang nhap</a> hoac <a href="/register">dang ky</a> de them san pham vao gio hang</p>
-                        </div>
-                    <% } %>
+                    </form>
                 <% } %>
 
                 <div class="product-detail-info-boxes">

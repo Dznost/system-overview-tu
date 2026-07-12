@@ -1,80 +1,55 @@
-<div class="admin-layout">
-  <div class="container py-6">
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-3xl font-bold">Quản Lý Bảo Hành</h1>
-      <a href="/admin/warranties/new" class="btn btn-primary">+ Thêm Bảo Hành</a>
+<section class="warranty-admin">
+  <div class="container">
+    <header class="warranty-header">
+      <div><span class="eyebrow">Hậu mãi đồ gia dụng</span><h1>Quản lý mã bảo hành</h1><p>Theo dõi từng mã đã cấp và xử lý lịch sử yêu cầu của khách hàng.</p></div>
+    </header>
+
+    <% if (success) { %><div class="notice success"><%= success %></div><% } %>
+    <% if (error) { %><div class="notice error"><%= error %></div><% } %>
+
+    <div class="stats-grid">
+      <article><span>Tổng mã</span><strong><%= stats.total %></strong></article>
+      <article><span>Đang hiệu lực</span><strong><%= stats.active %></strong></article>
+      <article><span>Hết hạn</span><strong><%= stats.expired %></strong></article>
+      <article><span>Cần xử lý</span><strong><%= stats.claimed %></strong></article>
     </div>
 
-    <% if (warranties && warranties.length > 0) { %>
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Số Giấy</th>
-              <th>Sản Phẩm</th>
-              <th>Khách Hàng</th>
-              <th>Ngày Mua</th>
-              <th>Hạn Bảo Hành</th>
-              <th>Trạng Thái</th>
-              <th>Hành Động</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% warranties.forEach(warranty => { %>
-              <tr>
-                <td><strong><%= warranty._id.toString().slice(-8).toUpperCase() %></strong></td>
-                <td>
-                  <% if (warranty.productId) { %>
-                    <%= warranty.productId.name %>
-                  <% } else if (warranty.dishId) { %>
-                    <%= warranty.dishId.name %>
-                  <% } else { %>
-                    N/A
-                  <% } %>
-                </td>
-                <td>
-                  <% if (warranty.userId) { %>
-                    <%= warranty.userId.name %>
-                  <% } else { %>
-                    N/A
-                  <% } %>
-                </td>
-                <td><%= new Date(warranty.purchaseDate).toLocaleDateString('vi-VN') %></td>
-                <td><%= new Date(warranty.expiryDate).toLocaleDateString('vi-VN') %></td>
-                <td>
-                  <% 
-                    const now = new Date();
-                    const expiry = new Date(warranty.expiryDate);
-                    let status = warranty.status;
-                    if (status === 'active') {
-                      if (now > expiry) {
-                        status = 'expired';
-                      }
-                    }
-                  %>
-                  <% if (status === 'active') { %>
-                    <span class="badge badge-success">Hoạt Động</span>
-                  <% } else if (status === 'expired') { %>
-                    <span class="badge badge-danger">Hết Hạn</span>
-                  <% } else if (status === 'claimed') { %>
-                    <span class="badge badge-info">Đã Nhận</span>
-                  <% } %>
-                </td>
-                <td>
-                  <div class="action-buttons">
-                    <a href="/admin/warranties/<%= warranty._id %>" class="btn-sm btn-edit">Xem</a>
-                    <form method="POST" action="/admin/warranties/<%= warranty._id %>/delete" style="display: inline;" onsubmit="return confirm('Xác nhận xóa?');">
-                      <button type="submit" class="btn-sm btn-danger">Xóa</button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-            <% }); %>
-          </tbody>
-        </table>
+    <form method="GET" action="/admin/warranties" class="filters">
+      <label>Trạng thái mã<select name="status"><option value="">Tất cả</option><option value="active" <%= statusFilter === 'active' ? 'selected' : '' %>>Hiệu lực</option><option value="claimed" <%= statusFilter === 'claimed' ? 'selected' : '' %>>Có yêu cầu</option><option value="expired" <%= statusFilter === 'expired' ? 'selected' : '' %>>Hết hạn</option><option value="resolved" <%= statusFilter === 'resolved' ? 'selected' : '' %>>Đã hoàn tất</option></select></label>
+      <label>Trạng thái yêu cầu<select name="requestStatus"><option value="">Tất cả</option><option value="pending" <%= requestStatus === 'pending' ? 'selected' : '' %>>Mới</option><option value="contacted" <%= requestStatus === 'contacted' ? 'selected' : '' %>>Đã liên hệ</option><option value="in_progress" <%= requestStatus === 'in_progress' ? 'selected' : '' %>>Đang xử lý</option><option value="resolved" <%= requestStatus === 'resolved' ? 'selected' : '' %>>Hoàn tất</option><option value="rejected" <%= requestStatus === 'rejected' ? 'selected' : '' %>>Từ chối</option></select></label>
+      <button class="btn btn-primary" type="submit">Lọc dữ liệu</button>
+    </form>
+
+    <% if (warranties && warranties.length) { %>
+      <div class="warranty-list">
+        <% warranties.forEach(warranty => { const latest = warranty.requests && warranty.requests.length ? warranty.requests[warranty.requests.length - 1] : null; %>
+          <article class="warranty-card">
+            <div class="warranty-summary">
+              <div><span class="eyebrow">Mã bảo hành</span><h2><%= warranty.warrantyCode %></h2><p><strong><%= warranty.productId ? warranty.productId.name : 'Sản phẩm đã ngừng bán' %></strong> · <%= warranty.productId && warranty.productId.sku ? warranty.productId.sku : 'Không có SKU' %></p></div>
+              <span class="status status-<%= warranty.status %>"><%= ({active:'Hiệu lực',claimed:'Có yêu cầu',expired:'Hết hạn',resolved:'Hoàn tất'})[warranty.status] || warranty.status %></span>
+            </div>
+            <div class="details-grid">
+              <p><span>Khách hàng</span><strong><%= warranty.customerName || (warranty.userId && warranty.userId.name) || 'Khách vãng lai' %></strong><small><%= warranty.customerPhone %></small></p>
+              <p><span>Đơn hàng</span><strong><%= warranty.orderId ? warranty.orderId.orderCode : '—' %></strong></p>
+              <p><span>Hiệu lực</span><strong><%= new Date(warranty.startDate).toLocaleDateString('vi-VN') %> – <%= warranty.endDate ? new Date(warranty.endDate).toLocaleDateString('vi-VN') : '—' %></strong></p>
+              <p><span>Số yêu cầu</span><strong><%= warranty.requestCount || (warranty.requests || []).length %></strong></p>
+            </div>
+            <% if (latest) { %>
+              <div class="request-box">
+                <div><span class="eyebrow">Yêu cầu gần nhất · <%= new Date(latest.requestedAt).toLocaleString('vi-VN') %></span><h3><%= latest.issueDescription %></h3><p><strong>Địa chỉ:</strong> <%= latest.serviceAddress %></p></div>
+                <form method="POST" action="/admin/warranties/<%= warranty._id %>/requests/<%= latest._id %>">
+                  <label>Tiến độ<select name="status"><% ['pending','contacted','in_progress','resolved','rejected'].forEach(value => { %><option value="<%= value %>" <%= latest.status === value ? 'selected' : '' %>><%= ({pending:'Mới',contacted:'Đã liên hệ',in_progress:'Đang xử lý',resolved:'Hoàn tất',rejected:'Từ chối'})[value] %></option><% }) %></select></label>
+                  <label>Phản hồi<textarea name="adminNotes" maxlength="2000" placeholder="Ghi chú xử lý cho yêu cầu"><%= latest.adminNotes || '' %></textarea></label>
+                  <button class="btn btn-primary" type="submit">Cập nhật yêu cầu</button>
+                </form>
+              </div>
+            <% } %>
+          </article>
+        <% }) %>
       </div>
-    <% } else { %>
-      <div class="alert alert-info">Chưa có bảo hành nào. <a href="/admin/warranties/new">Thêm bảo hành mới</a></div>
-    <% } %>
+    <% } else { %><div class="empty-state">Chưa có mã bảo hành phù hợp bộ lọc.</div><% } %>
   </div>
-</div>
+</section>
+<style>
+.warranty-admin{padding:40px 0 80px;background:#f8f6f2;min-height:100vh;color:#26231f}.warranty-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px}.warranty-header h1{font-size:2.2rem;margin:6px 0}.warranty-header p{color:#6b645d}.eyebrow{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:#8b6f47;font-weight:800}.notice{padding:12px 16px;border:1px solid;margin-bottom:16px}.success{background:#edf5ee;color:#285b32}.error{background:#faeded;color:#8b2f2f}.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.stats-grid article{background:#fff;border:1px solid #ddd5ca;padding:20px}.stats-grid span,.details-grid span{display:block;color:#736b62;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}.stats-grid strong{font-size:1.8rem}.filters{display:flex;align-items:flex-end;gap:12px;background:#fff;border:1px solid #ddd5ca;padding:16px;margin-bottom:20px}.filters label,.request-box label{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:.85rem}.filters select,.request-box select,.request-box textarea{border:1px solid #cfc6ba;padding:10px;background:#fff;font:inherit}.warranty-list{display:flex;flex-direction:column;gap:16px}.warranty-card{background:#fff;border:1px solid #d8d0c5;padding:22px}.warranty-summary{display:flex;justify-content:space-between;gap:20px}.warranty-summary h2{margin:5px 0;font-family:monospace}.status{height:max-content;padding:7px 10px;border:1px solid #cfc6ba;font-size:.8rem;font-weight:800}.status-active{background:#edf5ee;color:#285b32}.status-claimed{background:#fff4dd;color:#805516}.status-expired{background:#faeded;color:#8b2f2f}.details-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:18px 0;border-top:1px solid #ece6de;margin-top:16px}.details-grid p{margin:0}.details-grid strong,.details-grid small{display:block;margin-top:5px}.request-box{display:grid;grid-template-columns:1fr 1fr;gap:24px;background:#f7f3ed;padding:18px}.request-box h3{font-size:1rem}.request-box form{display:flex;flex-direction:column;gap:10px}.request-box textarea{min-height:76px}.empty-state{padding:40px;text-align:center;background:#fff;border:1px solid #ddd5ca}@media(max-width:800px){.stats-grid,.details-grid{grid-template-columns:repeat(2,1fr)}.filters,.warranty-summary{align-items:stretch;flex-direction:column}.request-box{grid-template-columns:1fr}}@media(max-width:520px){.stats-grid,.details-grid{grid-template-columns:1fr}}
+</style>
