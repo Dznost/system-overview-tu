@@ -314,12 +314,19 @@ router.get("/cart", checkAuth, async (req, res) => {
   try {
     const cart = req.session.cart || []
     
-    // Fetch available quantities for each item
+    // Refresh every cart item from the database instead of trusting stale session data.
     for (const item of cart) {
-      const dish = await Dish.findById(item.dishId)
-      if (dish) {
-        item.availableQuantity = dish.quantity || 0
-        item.image = dish.image
+      const record = item.itemType === "product" || item.productId
+        ? await Product.findById(item.productId)
+        : await Dish.findById(item.dishId)
+      if (record) {
+        item.availableQuantity = Math.max(0, Number(record.quantity) || 0)
+        item.image = record.image || record.images?.[0] || ""
+        item.name = record.name
+        item.price = Number(record.price) || 0
+        item.discount = Number(record.discount) || 0
+      } else {
+        item.availableQuantity = 0
       }
     }
     
@@ -337,7 +344,10 @@ router.post("/cart/add", checkAuth, async (req, res) => {
 
     if (!req.session.cart) req.session.cart = []
 
-    const requestedQuantity = Number.parseInt(quantity)
+    const requestedQuantity = Number.parseInt(quantity, 10)
+    if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1) {
+      return res.redirect("/user/cart?error=Số lượng phải là số nguyên dương")
+    }
 
     // Handle dish
     if (dishId) {
@@ -354,7 +364,7 @@ router.post("/cart/add", checkAuth, async (req, res) => {
         return res.redirect(`/menu?error=So luong yeu cau (${requestedQuantity}) vuot qua hang co san (${availableQuantity})`)
       }
 
-      const existingItem = req.session.cart.find((item) => item.dishId === dishId)
+      const existingItem = req.session.cart.find((item) => String(item.dishId) === String(dishId))
       if (existingItem) {
         const newQuantity = existingItem.quantity + requestedQuantity
         if (newQuantity > availableQuantity) {
@@ -394,7 +404,7 @@ router.post("/cart/add", checkAuth, async (req, res) => {
         return res.redirect(`/products?error=So luong yeu cau (${requestedQuantity}) vuot qua hang co san (${availableQuantity})`)
       }
 
-      const existingItem = req.session.cart.find((item) => item.productId === productId)
+      const existingItem = req.session.cart.find((item) => String(item.productId) === String(productId))
       if (existingItem) {
         const newQuantity = existingItem.quantity + requestedQuantity
         if (newQuantity > availableQuantity) {
@@ -425,8 +435,9 @@ router.post("/cart/add", checkAuth, async (req, res) => {
 router.get("/cart/remove/:itemId", checkAuth, (req, res) => {
   if (req.session.cart) {
     // Remove item by either dishId or productId
-    req.session.cart = req.session.cart.filter((item) => 
-      item.dishId !== req.params.itemId && item.productId !== req.params.itemId
+    req.session.cart = req.session.cart.filter((item) =>
+      String(item.dishId || "") !== String(req.params.itemId) &&
+      String(item.productId || "") !== String(req.params.itemId)
     )
   }
   res.redirect("/user/cart")
@@ -436,9 +447,9 @@ router.get("/cart/remove/:itemId", checkAuth, (req, res) => {
 router.post("/cart/update", checkAuth, async (req, res) => {
   try {
     const { dishId, productId, quantity } = req.body
-    const newQuantity = parseInt(quantity)
+    const newQuantity = Number.parseInt(quantity, 10)
 
-    if (!req.session.cart || newQuantity < 1) {
+    if (!req.session.cart || !Number.isInteger(newQuantity) || newQuantity < 1) {
       return res.redirect("/user/cart?error=So luong khong hop le")
     }
 
@@ -857,45 +868,47 @@ router.get("/payment/order/:orderId", checkAuth, async (req, res) => {
 
 router.post("/payment/order/:orderId/confirm", checkAuth, async (req, res) => {
   try {
-    console.log("[restaurant] Order payment confirmation started")
-    console.log("[restaurant] Request body:", req.body)
-
     const { paymentMethod } = req.body
-    const order = await Order.findById(req.params.orderId).populate("items.dishId").populate("items.productId")
-
-    if (!order) {
-      console.log("[restaurant] Order not found")
-      return res.status(404).render("404", { layout: false })
+    if (!['bank', 'cash'].includes(paymentMethod)) {
+      return res.status(400).render("error", { error: "Phương thức thanh toán không hợp lệ", layout: false })
     }
 
+    const order = await Order.findById(req.params.orderId).populate("items.dishId").populate("items.productId")
+    if (!order) return res.status(404).render("404", { layout: false })
     if (order.userId.toString() !== req.session.user.id) {
-      console.log("[restaurant] Unauthorized access")
       return res.status(403).render("error", { error: "Không có quyền truy cập", layout: false })
     }
-
-    console.log("[restaurant] Creating payment record...")
-
-    // Create payment record
-    // Determine revenueType based on order type and whether it's a guest order
-    let revenueType = "delivery";
-    if (order.orderType === "dine-in") {
-      revenueType = order.orderFor === "reception_behalf" ? "guest_order" : "reception";
+    if (order.paymentStatus === "paid" || await Payment.exists({ orderId: order._id, status: "completed" })) {
+      return res.redirect("/user/profile?error=Đơn hàng đã được thanh toán")
     }
 
-    const payment = new Payment({
+    // COD is only registered as awaiting collection; it is not revenue until delivery is confirmed.
+    if (paymentMethod === "cash") {
+      order.paymentMethod = "cash"
+      order.paymentStatus = "unpaid"
+      order.collectionStatus = "pending_collection"
+      await order.save()
+      return res.redirect("/user/profile?success=Đặt hàng thành công! Thanh toán khi nhận hàng")
+    }
+
+    let revenueType = "delivery"
+    if (order.orderType === "dine-in") {
+      revenueType = order.orderFor === "reception_behalf" ? "guest_order" : "reception"
+    }
+
+    const paidAt = new Date()
+    await Payment.create({
       orderId: order._id,
       userId: order.userId,
       amount: order.totalPrice,
       discount: order.discount,
       finalAmount: order.finalPrice,
-      paymentMethod,
+      paymentMethod: "bank",
       status: "completed",
-      revenueType: revenueType,
+      revenueType,
       branchId: order.orderType === "dine-in" ? (order.branchId || null) : null,
-      collectedBy: order.orderType !== "dine-in" ? (order.shipperId || null) : null,
       transactionId: `TXN${Date.now()}${order._id.toString().slice(-6)}`,
-      paidAt: new Date(),
-      // Save staff information if this is a guest order created by staff
+      paidAt,
       isGuestOrder: order.orderFor === "reception_behalf",
       guestName: order.guestName || "",
       guestPhone: order.guestPhone || "",
@@ -903,53 +916,25 @@ router.post("/payment/order/:orderId/confirm", checkAuth, async (req, res) => {
       depositAmount: order.depositAmount || 0,
       createdByStaff: order.createdByStaff || null,
     })
-    await payment.save()
-    console.log("[restaurant] Payment saved:", payment._id)
 
-    // Update order status
-    order.status = "completed"
     order.paymentStatus = "paid"
-    order.paymentMethod = paymentMethod
-    order.paidAt = new Date()
+    order.paymentMethod = "bank"
+    order.collectionStatus = "collected"
+    order.paidAt = paidAt
+    // A paid order still follows the fulfilment workflow; do not use a non-existent `completed` status.
+    if (order.status === "pending_approval") order.status = "approved"
     await order.save()
-    console.log("[restaurant] Order updated")
 
-    // Increment order count for each item in the completed order
-    const inventoryManager = require("../utils/inventoryManager");
+    const inventoryManager = require("../utils/inventoryManager")
     for (const item of order.items) {
-      if (item.itemType === "dish" && item.dishId) {
-        await inventoryManager.incrementOrderCount(item.dishId._id);
-      } else if (item.itemType === "product" && item.productId) {
-        await inventoryManager.incrementProductOrderCount(item.productId._id);
-      }
-    }
-    console.log("[restaurant] Order counts incremented for all items")
-
-    // Process loyalty points
-    const loyaltyManager = require("../utils/loyaltyManager");
-    const user = await User.findById(order.userId);
-    
-    if (user) {
-      // Calculate points earned (1 point per 1,000 VND)
-      const pointsEarned = loyaltyManager.calculatePointsFromOrder(order.finalPrice);
-      
-      // Add points to user
-      await loyaltyManager.addLoyaltyPoints(user._id, pointsEarned);
-      
-      // Update user's total spending
-      await loyaltyManager.updateUserSpending(user._id, order.finalPrice);
-      
-      // Update order with loyalty info
-      order.loyaltyPointsEarned = pointsEarned;
-      await order.save();
-      
-      console.log("[restaurant] Loyalty points earned:", pointsEarned, "for user:", user.name);
+      if (item.itemType === "dish" && item.dishId) await inventoryManager.incrementOrderCount(item.dishId._id)
+      if (item.itemType === "product" && item.productId) await inventoryManager.incrementProductOrderCount(item.productId._id)
     }
 
     res.redirect("/user/profile?success=Thanh toán thành công!")
   } catch (error) {
     console.error("[restaurant] Payment confirmation error:", error)
-    res.status(500).render("error", { error: error.message, layout: false })
+    res.status(500).render("error", { error: "Không thể xác nhận thanh toán. Vui lòng thử lại.", layout: false })
   }
 })
 
@@ -982,53 +967,46 @@ router.get("/payment/reservation/:reservationId", checkAuth, async (req, res) =>
 
 router.post("/payment/reservation/:reservationId/confirm", checkAuth, async (req, res) => {
   try {
-    console.log("[restaurant] Reservation payment confirmation started")
-    console.log("[restaurant] Request body:", req.body)
-
     const { paymentMethod } = req.body
-    const reservation = await Reservation.findById(req.params.reservationId)
-
-    if (!reservation) {
-      console.log("[restaurant] Reservation not found")
-      return res.status(404).render("404", { layout: false })
+    if (paymentMethod !== "bank") {
+      return res.status(400).render("error", { error: "Đặt bàn trực tuyến chỉ hỗ trợ chuyển khoản", layout: false })
     }
 
+    const reservation = await Reservation.findById(req.params.reservationId)
+    if (!reservation) return res.status(404).render("404", { layout: false })
     if (reservation.userId.toString() !== req.session.user.id) {
-      console.log("[restaurant] Unauthorized access")
       return res.status(403).render("error", { error: "Không có quyền truy cập", layout: false })
     }
+    if (reservation.paymentStatus === "paid" || await Payment.exists({ reservationId: reservation._id, status: "completed" })) {
+      return res.redirect("/user/profile?error=Đặt bàn đã được thanh toán")
+    }
 
-    console.log("[restaurant] Creating payment record...")
-
-    // Create payment record
-    const payment = new Payment({
+    const finalAmount = Math.max(0, Number(reservation.totalAmount) || Number(reservation.depositAmount) || 100000)
+    const paidAt = new Date()
+    await Payment.create({
       reservationId: reservation._id,
       userId: reservation.userId,
-      amount: reservation.totalAmount,
-      discount: reservation.foodDiscount,
-      finalAmount: reservation.totalAmount,
-      paymentMethod,
+      amount: finalAmount,
+      discount: Number(reservation.foodDiscount) || 0,
+      finalAmount,
+      paymentMethod: "bank",
       status: "completed",
       revenueType: "reception",
       branchId: reservation.branchId || null,
       transactionId: `TXN${Date.now()}${reservation._id.toString().slice(-6)}`,
-      paidAt: new Date(),
+      paidAt,
     })
-    await payment.save()
-    console.log("[restaurant] Payment saved:", payment._id)
 
-    // Update reservation status
     reservation.status = "confirmed"
     reservation.paymentStatus = "paid"
-    reservation.paymentMethod = paymentMethod
-    reservation.paidAt = new Date()
+    reservation.paymentMethod = "bank"
+    reservation.paidAt = paidAt
     await reservation.save()
-    console.log("[restaurant] Reservation updated")
 
     res.redirect("/user/profile?success=Thanh toán đặt bàn thành công!")
   } catch (error) {
-    console.error("[restaurant] Payment confirmation error:", error)
-    res.status(500).render("error", { error: error.message, layout: false })
+    console.error("[restaurant] Reservation payment error:", error)
+    res.status(500).render("error", { error: "Không thể xác nhận thanh toán đặt bàn. Vui lòng thử lại.", layout: false })
   }
 })
 

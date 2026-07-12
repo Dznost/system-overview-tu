@@ -1,219 +1,134 @@
-const Coupon = require("../models/Coupon");
+const Coupon = require("../models/Coupon")
 
-// Get all coupons
+function normalizeApplicableTo(value) {
+  const aliases = { all: "all", dish: "dishes", dishes: "dishes", product: "products", products: "products" }
+  const values = Array.isArray(value) ? value : String(value || "all").split(",")
+  const normalized = [...new Set(values.map((item) => aliases[String(item).trim().toLowerCase()]).filter(Boolean))]
+  return normalized.length ? normalized : ["all"]
+}
+
+function buildCouponData(body, userId) {
+  const discountValue = Number(body.discountValue)
+  const validFrom = new Date(body.validFrom)
+  const validUntil = new Date(body.validUntil)
+  const maxUses = Number(body.maxUses)
+  const minOrderAmount = Number(body.minOrderAmount ?? body.minOrderValue ?? 0)
+
+  if (!body.code?.trim()) throw new Error("Vui lòng nhập mã giảm giá")
+  if (!["percentage", "fixed_amount"].includes(body.discountType)) throw new Error("Loại giảm giá không hợp lệ")
+  if (!Number.isFinite(discountValue) || discountValue <= 0) throw new Error("Giá trị giảm phải lớn hơn 0")
+  if (body.discountType === "percentage" && discountValue > 100) throw new Error("Mức giảm phần trăm không được vượt quá 100%")
+  if (Number.isNaN(validFrom.getTime()) || Number.isNaN(validUntil.getTime()) || validUntil <= validFrom) {
+    throw new Error("Ngày kết thúc phải sau ngày bắt đầu")
+  }
+  if (!Number.isInteger(maxUses) || maxUses < 1) throw new Error("Số lượt sử dụng phải là số nguyên dương")
+  if (!Number.isFinite(minOrderAmount) || minOrderAmount < 0) throw new Error("Giá trị đơn tối thiểu không hợp lệ")
+
+  return {
+    code: body.code.trim().toUpperCase(),
+    description: body.description?.trim() || "",
+    discountType: body.discountType,
+    discountValue,
+    minOrderAmount,
+    maxUses,
+    validFrom,
+    validUntil,
+    applicableTo: normalizeApplicableTo(body.applicableTo),
+    createdBy: userId,
+    isActive: body.isActive === undefined ? true : ["on", "true", "1"].includes(String(body.isActive)),
+  }
+}
+
 exports.getCoupons = async (req, res) => {
   try {
-    const coupons = await Coupon.find().sort({ createdAt: -1 });
-    const currentDate = new Date();
-
+    const coupons = await Coupon.find().sort({ createdAt: -1 })
     res.render("admin/coupons/index", {
-      title: "Quan Ly Ma Giam Gia",
+      title: "Quản Lý Mã Giảm Giá",
       coupons,
-      currentDate,
+      currentDate: new Date(),
       success: req.query.success,
       error: req.query.error,
-    });
+    })
   } catch (error) {
-    console.error("[restaurant] Error in getCoupons:", error);
-    res.status(500).render("error", { error: error.message });
+    res.status(500).render("error", { error: error.message })
   }
-};
+}
 
-// Get new coupon form
-exports.getNewCouponForm = (req, res) => {
-  res.render("admin/coupons/form", {
-    title: "Them Ma Giam Gia Moi",
-    coupon: null,
-  });
-};
+exports.getNewCouponForm = (req, res) => res.render("admin/coupons/form", {
+  title: "Thêm Mã Giảm Giá Mới",
+  coupon: null,
+  error: req.query.error,
+})
 
-// Create coupon
 exports.createCoupon = async (req, res) => {
   try {
-    const {
-      code,
-      discountType,
-      discountValue,
-      minOrderAmount,
-      maxUsagePerUser,
-      totalUsageLimit,
-      expiryDate,
-      applicableType,
-      description,
-    } = req.body;
-
-    // Validate code uniqueness
-    const existingCoupon = await Coupon.findOne({ code: code.toUpperCase() });
-    if (existingCoupon) {
-      return res.redirect(
-        `/admin/coupons/new?error=Ma giam gia ${code} da ton tai`
-      );
-    }
-
-    const coupon = new Coupon({
-      code: code.toUpperCase(),
-      discountType,
-      discountValue: Number(discountValue),
-      minOrderAmount: Number(minOrderAmount) || 0,
-      maxUsagePerUser: Number(maxUsagePerUser) || 999,
-      totalUsageLimit: Number(totalUsageLimit) || 9999,
-      expiryDate: new Date(expiryDate),
-      applicableType,
-      description,
-      isActive: true,
-    });
-
-    await coupon.save();
-    res.redirect(`/admin/coupons?success=Them ma giam gia thanh cong`);
+    const data = buildCouponData(req.body, req.session.user.id)
+    if (await Coupon.exists({ code: data.code })) throw new Error(`Mã giảm giá ${data.code} đã tồn tại`)
+    await Coupon.create(data)
+    res.redirect("/admin/coupons?success=Thêm mã giảm giá thành công")
   } catch (error) {
-    console.error("[restaurant] Error in createCoupon:", error);
-    res.redirect(`/admin/coupons/new?error=${encodeURIComponent(error.message)}`);
+    res.redirect(`/admin/coupons/new?error=${encodeURIComponent(error.message)}`)
   }
-};
+}
 
-// Get edit coupon form
 exports.getEditCouponForm = async (req, res) => {
   try {
-    const coupon = await Coupon.findById(req.params.id);
-
-    if (!coupon) {
-      return res.redirect("/admin/coupons?error=Khong tim thay ma giam gia");
-    }
-
-    res.render("admin/coupons/form", {
-      title: "Chinh Sua Ma Giam Gia",
-      coupon,
-    });
+    const coupon = await Coupon.findById(req.params.id)
+    if (!coupon) return res.redirect("/admin/coupons?error=Không tìm thấy mã giảm giá")
+    res.render("admin/coupons/form", { title: "Chỉnh Sửa Mã Giảm Giá", coupon, error: req.query.error })
   } catch (error) {
-    console.error("[restaurant] Error in getEditCouponForm:", error);
-    res.redirect("/admin/coupons?error=Co loi khi tai form");
+    res.redirect("/admin/coupons?error=Không thể tải mã giảm giá")
   }
-};
+}
 
-// Update coupon
 exports.updateCoupon = async (req, res) => {
   try {
-    const {
-      code,
-      discountType,
-      discountValue,
-      minOrderAmount,
-      maxUsagePerUser,
-      totalUsageLimit,
-      expiryDate,
-      applicableType,
-      description,
-      isActive,
-    } = req.body;
-
-    // Check if code already exists (excluding current coupon)
-    const existingCoupon = await Coupon.findOne({
-      code: code.toUpperCase(),
-      _id: { $ne: req.params.id },
-    });
-
-    if (existingCoupon) {
-      return res.redirect(
-        `/admin/coupons/${req.params.id}/edit?error=Ma giam gia ${code} da ton tai`
-      );
-    }
-
-    const coupon = await Coupon.findByIdAndUpdate(
-      req.params.id,
-      {
-        code: code.toUpperCase(),
-        discountType,
-        discountValue: Number(discountValue),
-        minOrderAmount: Number(minOrderAmount) || 0,
-        maxUsagePerUser: Number(maxUsagePerUser) || 999,
-        totalUsageLimit: Number(totalUsageLimit) || 9999,
-        expiryDate: new Date(expiryDate),
-        applicableType,
-        description,
-        isActive: isActive === "on",
-      },
-      { new: true }
-    );
-
-    if (!coupon) {
-      return res.redirect("/admin/coupons?error=Khong tim thay ma giam gia");
-    }
-
-    res.redirect(`/admin/coupons?success=Cap nhat ma giam gia thanh cong`);
+    const data = buildCouponData(req.body, req.session.user.id)
+    const duplicate = await Coupon.exists({ code: data.code, _id: { $ne: req.params.id } })
+    if (duplicate) throw new Error(`Mã giảm giá ${data.code} đã tồn tại`)
+    delete data.createdBy
+    const coupon = await Coupon.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true })
+    if (!coupon) return res.redirect("/admin/coupons?error=Không tìm thấy mã giảm giá")
+    res.redirect("/admin/coupons?success=Cập nhật mã giảm giá thành công")
   } catch (error) {
-    console.error("[restaurant] Error in updateCoupon:", error);
-    res.redirect(
-      `/admin/coupons/${req.params.id}/edit?error=${encodeURIComponent(error.message)}`
-    );
+    res.redirect(`/admin/coupons/${req.params.id}/edit?error=${encodeURIComponent(error.message)}`)
   }
-};
+}
 
-// Delete coupon
 exports.deleteCoupon = async (req, res) => {
   try {
-    const coupon = await Coupon.findByIdAndDelete(req.params.id);
-
-    if (!coupon) {
-      return res.redirect("/admin/coupons?error=Khong tim thay ma giam gia");
-    }
-
-    res.redirect(`/admin/coupons?success=Xoa ma giam gia thanh cong`);
+    const coupon = await Coupon.findByIdAndDelete(req.params.id)
+    if (!coupon) return res.redirect("/admin/coupons?error=Không tìm thấy mã giảm giá")
+    res.redirect("/admin/coupons?success=Xóa mã giảm giá thành công")
   } catch (error) {
-    console.error("[restaurant] Error in deleteCoupon:", error);
-    res.redirect("/admin/coupons?error=Co loi khi xoa ma giam gia");
+    res.redirect("/admin/coupons?error=Không thể xóa mã giảm giá")
   }
-};
+}
 
-// Validate coupon code (used at checkout)
 exports.validateCoupon = async (req, res) => {
   try {
-    const { code, orderTotal } = req.body;
-
-    if (!code) {
-      return res.json({ valid: false, message: "Vui long nhap ma giam gia" });
+    const orderTotal = Number(req.body.orderTotal)
+    const coupon = await Coupon.findOne({ code: String(req.body.code || "").trim().toUpperCase() })
+    if (!coupon || !coupon.isValid()) return res.json({ valid: false, message: "Mã giảm giá không hợp lệ hoặc đã hết hạn" })
+    if (!Number.isFinite(orderTotal) || orderTotal < coupon.minOrderAmount) {
+      return res.json({ valid: false, message: `Đơn hàng tối thiểu ${coupon.minOrderAmount.toLocaleString("vi-VN")}đ` })
     }
-
-    const coupon = await Coupon.findOne({ code: code.toUpperCase() });
-
-    if (!coupon) {
-      return res.json({ valid: false, message: "Ma giam gia khong hop le" });
-    }
-
-    if (!coupon.isValid()) {
-      return res.json({
-        valid: false,
-        message: "Ma giam gia da het han hoac dat gioi han su dung",
-      });
-    }
-
-    if (orderTotal < coupon.minOrderAmount) {
-      return res.json({
-        valid: false,
-        message: `Gia tri toi thieu don hang la ${coupon.minOrderAmount.toLocaleString(
-          "vi-VN"
-        )} dong`,
-      });
-    }
-
-    // Calculate discount
-    const discount =
-      coupon.discountType === "percentage"
-        ? Math.round((orderTotal * coupon.discountValue) / 100)
-        : coupon.discountValue;
-
+    const rawDiscount = coupon.discountType === "percentage"
+      ? Math.round(orderTotal * coupon.discountValue / 100)
+      : coupon.discountValue
+    const discount = Math.min(orderTotal, rawDiscount)
     res.json({
       valid: true,
       code: coupon.code,
       discountType: coupon.discountType,
       discountValue: coupon.discountValue,
       discount,
-      finalAmount: orderTotal - discount,
+      finalAmount: Math.max(0, orderTotal - discount),
       description: coupon.description,
-    });
+    })
   } catch (error) {
-    console.error("[restaurant] Error in validateCoupon:", error);
-    res.json({ valid: false, message: "Co loi khi kiem tra ma giam gia" });
+    res.json({ valid: false, message: "Không thể kiểm tra mã giảm giá" })
   }
-};
+}
 
-module.exports = exports;
+module.exports = exports

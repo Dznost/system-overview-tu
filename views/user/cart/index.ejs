@@ -44,13 +44,13 @@
                         <% let total = 0; %>
                         <% cart.forEach((item, index) => { %>
                             <% 
-                                const originalPrice = item.originalPrice || item.price;
-                                const finalPrice = item.price;
-                                const hasDiscount = item.discount && item.discount > 0;
-                                const itemTotal = finalPrice * item.quantity; 
+                                const originalPrice = Number(item.price) || 0;
+                                const hasDiscount = Number(item.discount) > 0;
+                                const finalPrice = originalPrice * (1 - (Number(item.discount) || 0) / 100);
+                                const itemTotal = finalPrice * item.quantity;
                                 total += itemTotal;
                             %>
-                            <article class="cart-item" data-item-id="<%= item.dishId %>">
+                            <article class="cart-item" data-item-id="<%= item.dishId || item.productId %>">
                                 <div class="item-image">
                                     <img src="<%= item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop' %>" 
                                          alt="<%= item.name %>" loading="lazy"
@@ -109,7 +109,7 @@
                                 </div>
                                 
                                 <div class="item-actions">
-                                    <a href="/user/cart/remove/<%= item.dishId %>" class="remove-btn" 
+                                    <a href="/user/cart/remove/<%= item.dishId || item.productId %>" class="remove-btn" 
                                        onclick="return confirm('Xoa san pham nay khoi gio hang?')" title="Xoa">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <polyline points="3 6 5 6 21 6"/>
