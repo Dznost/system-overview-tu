@@ -1,146 +1,56 @@
-<section class="admin-section">
-    <div class="container">
-        <div class="section-header">
-            <h1>Quan Ly Mon An</h1>
-            <a href="/admin/dishes/new" class="btn btn-primary">Them Mon An Moi</a>
-        </div>
+<section class="dish-admin-page">
+  <div class="dish-page-shell">
+    <header class="dish-page-header">
+      <div>
+        <p class="eyebrow">SẢN PHẨM / MÓN ĂN</p>
+        <h1>Quản lý món ăn</h1>
+        <p>Theo dõi giá bán, tồn kho và hiệu suất của từng món.</p>
+      </div>
+      <a href="/admin/dishes/new" class="primary-action" aria-label="Thêm món ăn mới">
+        <span aria-hidden="true">+</span> Thêm món ăn
+      </a>
+    </header>
 
-        <% if (typeof success !== 'undefined' && success) { %>
-            <div class="alert alert-success"><%= success %></div>
-        <% } %>
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="notice success"><%= success %></div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="notice error"><%= error %></div>
+    <% } %>
 
-        <% if (dishes && dishes.length > 0) { %>
-            <div class="admin-card">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Hinh Anh</th>
-                            <th>Ten</th>
-                            <th>Mo Ta</th>
-                            <th>Gia</th>
-                            <th>Danh Muc</th>
-                            <th>Giam Gia</th>
-                            <th>So Luong</th>
-                            <th>Trang Thai</th>
-                            <th>Dat Hang</th>
-                            <th>Hanh Dong</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <% dishes.forEach(dish => { %>
-                            <tr>
-                                <td>
-                                    <img src="<%= dish.image %>" alt="<%= dish.name %>" 
-                                         style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;"
-                                         onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=60&h=60&fit=crop'">
-                                </td>
-                                <td><strong><%= dish.name %></strong></td>
-                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                    <%= dish.description %>
-                                </td>
-                                <td>
-                                    <% const eventDiscount = dish.event ? dish.event.discount : 0; %>
-                                    <% const finalDiscount = eventDiscount || dish.discount; %>
-                                    <% if (finalDiscount > 0) { %>
-                                        <div>
-                                            <span style="text-decoration: line-through; color: #999; font-size: 0.85rem;">
-                                                <%= dish.price.toLocaleString('vi-VN') %>đ
-                                            </span>
-                                            <br>
-                                            <strong style="color: var(--accent);">
-                                                <%= (dish.price * (1 - finalDiscount / 100)).toLocaleString('vi-VN') %>đ
-                                            </strong>
-                                        </div>
-                                    <% } else { %>
-                                        <strong><%= dish.price.toLocaleString('vi-VN') %>đ</strong>
-                                    <% } %>
-                                </td>
-                                <td>
-                                    <% const categoryMap = {
-                                        'appetizer': { label: 'Khai Vi', color: '#d1ecf1' },
-                                        'main': { label: 'Mon Chinh', color: '#fff3cd' },
-                                        'dessert': { label: 'Trang Mieng', color: '#f8d7da' },
-                                        'beverage': { label: 'Do Uong', color: '#d4edda' }
-                                    }; %>
-                                    <% const cat = categoryMap[dish.category] || { label: dish.category, color: '#e2e3e5' }; %>
-                                    <span class="category-badge" style="background: <%= cat.color %>;">
-                                        <%= cat.label %>
-                                    </span>
-                                </td>
-                                <td>
-                                    <% if (dish.event) { %>
-                                        <span class="discount-badge" style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);">
-                                            <%= dish.event.discount %>% (<%= dish.event.title %>)
-                                        </span>
-                                    <% } else if (dish.discount > 0) { %>
-                                        <span class="discount-badge"><%= dish.discount %>%</span>
-                                    <% } else { %>
-                                        <span style="color: #999;">-</span>
-                                    <% } %>
-                                </td>
-                                <td>
-                                    <% const quantity = dish.quantity || 0; %>
-                                    <span style="font-weight: 600; <%= quantity === 0 ? 'color: #dc2626;' : quantity < 10 ? 'color: #f59e0b;' : 'color: #16a34a;' %>">
-                                        <%= quantity %> <span style="color: #6b7280; font-size: 0.85rem;">phan</span>
-                                    </span>
-                                </td>
-                                <td>
-                                    <% if (quantity === 0) { %>
-                                        <span class="status-badge" style="background: #fee2e2; color: #991b1b;">Het hang</span>
-                                    <% } else if (dish.isBestSelling) { %>
-                                        <span class="status-badge" style="background: #fef3c7; color: #92400e;">Ban chay</span>
-                                    <% } else { %>
-                                        <span class="status-badge" style="background: #dbeafe; color: #1e40af;">Binh thuong</span>
-                                    <% } %>
-                                </td>
-                                <td>
-                                    <% const orders = dish.totalOrdersCompleted || 0; %>
-                                    <span title="Tong so lan dat hang">
-                                        <strong style="color: #8B6F47;"><%= orders %></strong>
-                                        <span style="color: #6b7280; font-size: 0.85rem;">lan</span>
-                                    </span>
-                                </td>
-                                <td class="action-buttons">
-                                    <a href="/admin/dishes/<%= dish._id %>/edit" class="btn btn-small btn-primary">Sua</a>
-                                    <a href="/admin/dishes/<%= dish._id %>/delete" class="btn btn-small btn-danger" onclick="return confirm('Ban chac chan muon xoa?')">Xoa</a>
-                                </td>
-                            </tr>
-                        <% }); %>
-                    </tbody>
-                </table>
-            </div>
-        <% } else { %>
-            <div class="empty-message">
-                <p>Chua co mon an nao. <a href="/admin/dishes/new" class="btn btn-primary">Them ngay</a></p>
-            </div>
-        <% } %>
+    <div class="summary-strip">
+      <div><span>Tổng món</span><strong><%= dishes ? dishes.length : 0 %></strong></div>
+      <div><span>Còn hàng</span><strong><%= dishes ? dishes.filter(d => (d.quantity || 0) > 0).length : 0 %></strong></div>
+      <div><span>Hết hàng</span><strong><%= dishes ? dishes.filter(d => (d.quantity || 0) === 0).length : 0 %></strong></div>
+      <div><span>Bán chạy</span><strong><%= dishes ? dishes.filter(d => d.isBestSelling).length : 0 %></strong></div>
     </div>
-</section>
 
+    <% if (dishes && dishes.length) { %>
+      <div class="dish-table-card">
+        <div class="table-scroll">
+          <table class="dish-table">
+            <thead><tr><th>Món ăn</th><th>Danh mục</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th><th>Lượt đặt</th><th><span class="sr-only">Hành động</span></th></tr></thead>
+            <tbody>
+              <% dishes.forEach(dish => { const eventDiscount = dish.event ? dish.event.discount : 0; const discount = eventDiscount || dish.discount || 0; const quantity = dish.quantity || 0; %>
+                <tr>
+                  <td><div class="dish-identity"><img src="<%= dish.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=160&h=160&fit=crop' %>" alt="<%= dish.name %>" onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=160&h=160&fit=crop'"><div><strong><%= dish.name %></strong><small><%= dish.description || 'Chưa có mô tả' %></small></div></div></td>
+                  <td><span class="tag neutral"><%= ({appetizer:'Khai vị', main:'Món chính', dessert:'Tráng miệng', beverage:'Đồ uống'})[dish.category] || dish.category %></span></td>
+                  <td><div class="price-cell"><strong><%= Math.round(dish.price * (1 - discount / 100)).toLocaleString('vi-VN') %>đ</strong><% if (discount) { %><small><%= dish.price.toLocaleString('vi-VN') %>đ · -<%= discount %>%</small><% } %></div></td>
+                  <td><strong class="stock <%= quantity === 0 ? 'out' : quantity < 10 ? 'low' : '' %>"><%= quantity %></strong> phần</td>
+                  <td><% if (quantity === 0) { %><span class="tag danger">Hết hàng</span><% } else if (dish.isBestSelling) { %><span class="tag accent">Bán chạy</span><% } else { %><span class="tag success">Đang bán</span><% } %></td>
+                  <td><strong><%= dish.totalOrdersCompleted || 0 %></strong> lần</td>
+                  <td><div class="row-actions"><a href="/admin/dishes/<%= dish._id %>/edit">Sửa</a><a class="delete" href="/admin/dishes/<%= dish._id %>/delete" onclick="return confirm('Bạn chắc chắn muốn xóa món này?')">Xóa</a></div></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="empty-state"><h2>Chưa có món ăn</h2><p>Tạo món đầu tiên để bắt đầu quản lý thực đơn.</p><a href="/admin/dishes/new" class="primary-action">Thêm món ăn</a></div>
+    <% } %>
+  </div>
+</section>
 <style>
-    
-    .category-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 15px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-    
-    .discount-badge {
-        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 15px;
-        font-weight: bold;
-        font-size: 0.9rem;
-    }
-    
-    .status-badge {
-        padding: 0.35rem 0.75rem;
-        border-radius: 15px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        white-space: nowrap;
-    }
+.dish-admin-page{min-height:100vh;background:#f6f4f0;color:#282522;padding:28px}.dish-page-shell{max-width:1280px;margin:0 auto}.dish-page-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:24px}.eyebrow{font-size:12px;letter-spacing:.14em;color:#9a7440;font-weight:700;margin:0 0 8px}.dish-page-header h1{font-size:30px;line-height:1.2;margin:0 0 8px}.dish-page-header p{color:#706b65;margin:0}.primary-action{display:inline-flex;align-items:center;gap:8px;background:#8b6f47;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;white-space:nowrap}.primary-action:hover{background:#6f5738}.notice{padding:12px 16px;border-radius:8px;margin-bottom:16px}.notice.success{background:#e7f2ea;color:#245b36}.notice.error{background:#f8e8e6;color:#8d2924}.summary-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#ded9d1;border:1px solid #ded9d1;border-radius:10px;overflow:hidden;margin-bottom:20px}.summary-strip div{background:#fff;padding:18px}.summary-strip span{display:block;color:#77716b;font-size:13px;margin-bottom:6px}.summary-strip strong{font-size:25px}.dish-table-card{background:#fff;border:1px solid #e3ded6;border-radius:10px;overflow:hidden}.table-scroll{overflow-x:auto}.dish-table{width:100%;border-collapse:collapse;min-width:980px}.dish-table th{text-align:left;padding:13px 16px;background:#eeeae4;color:#625d57;font-size:12px;letter-spacing:.05em;text-transform:uppercase}.dish-table td{padding:14px 16px;border-top:1px solid #ece8e2;vertical-align:middle;font-size:14px}.dish-table tbody tr:hover{background:#faf9f7}.dish-identity{display:flex;align-items:center;gap:12px;max-width:330px}.dish-identity img{width:58px;height:58px;object-fit:cover;border-radius:7px;background:#eee}.dish-identity strong,.dish-identity small{display:block}.dish-identity small{color:#77716b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px;margin-top:5px}.tag{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700}.tag.neutral{background:#eeeae4;color:#625d57}.tag.accent{background:#f1e4ce;color:#765224}.tag.success{background:#e7f2ea;color:#245b36}.tag.danger{background:#f8e8e6;color:#8d2924}.price-cell strong,.price-cell small{display:block}.price-cell small{color:#8a847d;text-decoration:none;margin-top:4px}.stock{color:#245b36}.stock.low{color:#9a650b}.stock.out{color:#a2322c}.row-actions{display:flex;gap:8px}.row-actions a{padding:7px 10px;border:1px solid #d6d0c8;border-radius:6px;color:#51483e;text-decoration:none;font-weight:600}.row-actions .delete{color:#a2322c}.empty-state{text-align:center;background:#fff;border:1px solid #e3ded6;border-radius:10px;padding:64px 20px}.empty-state p{color:#706b65;margin-bottom:22px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:760px){.dish-admin-page{padding:18px}.dish-page-header{align-items:flex-start;flex-direction:column}.summary-strip{grid-template-columns:repeat(2,1fr)}}
 </style>
