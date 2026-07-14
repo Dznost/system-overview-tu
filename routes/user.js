@@ -1324,6 +1324,37 @@ router.post("/orders/:id/rate", checkAuth, async (req, res) => {
     order.ratedAt = new Date()
     await order.save()
 
+    // Also persist per-item Review documents so the rating shows up in the admin
+    // review management panel (which reads from the Review collection, not Order.rating).
+    await order.populate("items.productId", "name sku")
+    await order.populate("items.dishId", "name")
+    const customerName = req.session.user.name || order.fullName || "Khách hàng"
+    const comment = (ratingComment || "").trim() || `Đánh giá ${ratingNum} sao`
+    for (const item of order.items || []) {
+      const isProduct = item.itemType === "product" && item.productId
+      const isDish = item.itemType !== "product" && item.dishId
+      if (!isProduct && !isDish) continue
+      const targetField = isProduct
+        ? { productId: item.productId._id, productSku: (item.productId.sku || "") }
+        : { dishId: item.dishId._id }
+      const dupFilter = { userId: order.userId || null }
+      if (isProduct) dupFilter.productId = item.productId._id
+      else dupFilter.dishId = item.dishId._id
+      if (await Review.findOne(dupFilter)) continue
+      await Review.create({
+        orderId: order._id,
+        userId: order.userId || null,
+        guestPhoneNormalized: order.userId ? null : order.customerPhoneNormalized,
+        ...targetField,
+        customerName,
+        rating: ratingNum,
+        comment,
+        verifiedPurchase: true,
+        status: "approved",
+        messages: [{ senderRole: "customer", senderId: order.userId || null, senderName: customerName, content: comment }],
+      })
+    }
+
     // Notify admin about the new review
     const ratingLabels = ["", "Rat te", "Khong tot", "Binh thuong", "Tot", "Tuyet voi"]
     const admin = await User.findOne({ role: "admin" })

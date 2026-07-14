@@ -6,6 +6,7 @@ const Notification = require("../models/Notification")
 const bcrypt = require("bcryptjs")
 const { appendHistory } = require("../utils/guestOrders")
 const { issueWarrantiesForOrder } = require("../utils/warrantyManager")
+const { awardLoyaltyForOrder } = require("../utils/loyaltyManager")
 
 // Dashboard
 exports.getDashboard = async (req, res) => {
@@ -130,6 +131,7 @@ exports.confirmCompleted = async (req, res) => {
   await order.save()
   await order.populate("items.productId")
   await issueWarrantiesForOrder(order)
+  await awardLoyaltyForOrder(order)
 
     // Create a delivery payment record so revenue is tracked per shipper
     const existing = await Payment.findOne({ orderId: order._id, status: "completed" })

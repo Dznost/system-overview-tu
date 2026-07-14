@@ -6,6 +6,7 @@ const Dish = require("../models/Dish");
 const inventoryManager = require("../utils/inventoryManager");
 const { appendHistory } = require("../utils/guestOrders");
 const { issueWarrantiesForOrder } = require("../utils/warrantyManager");
+const { awardLoyaltyForOrder } = require("../utils/loyaltyManager");
 
 async function getActor(req) {
   if (!req.session.user) return { role: "system", name: "Hệ thống" };
@@ -257,6 +258,7 @@ exports.completeCODPayment = async (req, res) => {
       });
       await order.save();
       await issueWarrantiesForOrder(order);
+      await awardLoyaltyForOrder(order);
       
       // Increment order count for each item in the completed order
       for (const item of order.items) {

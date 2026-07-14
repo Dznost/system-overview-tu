@@ -84,6 +84,31 @@ async function updateUserSpending(userId, amount) {
   }
 }
 
+// Award loyalty points + update spending/tier for a completed order.
+// Safe to call from every completion path: it no-ops for guest orders and
+// is guarded by order.loyaltyAwarded so points are never granted twice.
+async function awardLoyaltyForOrder(order) {
+  try {
+    if (!order || !order.userId || order.loyaltyAwarded) return
+    const amount = order.finalPrice || order.totalPrice || 0
+    if (amount <= 0) return
+
+    const points = calculatePointsFromOrder(amount)
+    if (points > 0) {
+      await addLoyaltyPoints(order.userId, points, `Đơn hàng ${order.orderCode || order._id}`)
+    }
+    await updateUserSpending(order.userId, amount)
+
+    order.loyaltyAwarded = true
+    order.loyaltyPointsEarned = points
+    await order.save()
+    console.log(`[restaurant] Awarded ${points} loyalty points for order ${order._id}`)
+  } catch (error) {
+    // Never block order completion because of a loyalty error.
+    console.error("[restaurant] Error awarding loyalty for order:", error)
+  }
+}
+
 // Get tier benefits (discount percentage)
 function getTierBenefits(tier) {
   const benefits = {
@@ -123,6 +148,7 @@ module.exports = {
   addLoyaltyPoints,
   subtractLoyaltyPoints,
   updateUserSpending,
+  awardLoyaltyForOrder,
   getTierBenefits,
   canUseLoyaltyPoints
 }

@@ -7,6 +7,7 @@ const Notification = require("../models/Notification")
 const bcrypt = require("bcryptjs")
 const { appendHistory } = require("../utils/guestOrders")
 const { issueWarrantiesForOrder } = require("../utils/warrantyManager")
+const { awardLoyaltyForOrder } = require("../utils/loyaltyManager")
 
 // Dashboard
 exports.getDashboard = async (req, res) => {
@@ -149,6 +150,7 @@ exports.confirmOrderCompleted = async (req, res) => {
     await order.save()
     await order.populate("items.productId")
     await issueWarrantiesForOrder(order)
+    await awardLoyaltyForOrder(order)
 
     // Restore table availability when dine-in order is completed
     if (order.orderType === "dine-in" && order.branchId) {
