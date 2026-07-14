@@ -38,41 +38,30 @@
               </div>
             </div>
 
-            <!-- Order tracking timeline -->
+            <!-- Order tracking timeline (real status history) -->
             <%
-              var steps = [];
-              if (order.orderType === 'dine-in') {
-                steps = [
-                  { key: 'pending', label: 'Dat mon' },
-                  { key: 'processing', label: 'Dang chuan bi' },
-                  { key: 'completed', label: 'Hoan thanh' }
-                ];
-              } else {
-                steps = [
-                  { key: 'pending', label: 'Dat hang' },
-                  { key: 'processing', label: 'Chuan bi' },
-                  { key: 'shipping', label: 'Dang giao' },
-                  { key: 'delivered', label: 'Da giao' },
-                  { key: 'completed', label: 'Hoan thanh' }
-                ];
-              }
-              var statusOrder = ['pending','approved','paid','processing','shipping','delivered','completed'];
-              var currentIdx = statusOrder.indexOf(order.status);
-              if (order.status === 'cancelled') currentIdx = -1;
+              var statusLabelsMy = { pending_approval: 'Chờ xác nhận', pending: 'Chờ xử lý', approved: 'Đã duyệt', confirmed: 'Đã xác nhận', paid: 'Đã thanh toán', preparing: 'Đang chuẩn bị', ready: 'Sẵn sàng', processing: 'Đang chuẩn bị', assigned_shipper: 'Đã giao shipper', shipped: 'Đang giao hàng', shipping: 'Đang giao hàng', delivered_success: 'Giao thành công', delivered: 'Đã giao hàng', served: 'Đã phục vụ', completed: 'Hoàn thành', delivery_failed: 'Giao thất bại', cancelled: 'Đã hủy', created: 'Đã tạo đơn' };
+              var history = (order.statusHistory && order.statusHistory.length)
+                ? order.statusHistory
+                : [{ status: 'created', timestamp: order.createdAt, actorName: 'Hệ thống', note: 'Đơn hàng đã được tiếp nhận.' }];
             %>
-            <div class="tracking-timeline">
-              <% steps.forEach(function(step, si) { %>
-                <% var stepIdx = statusOrder.indexOf(step.key); %>
-                <% var isDone = currentIdx >= stepIdx && order.status !== 'cancelled'; %>
-                <% var isCurrent = step.key === order.status || (step.key === 'pending' && ['pending','approved','paid'].indexOf(order.status) !== -1); %>
-                <div class="track-step <%= isDone ? 'done' : '' %> <%= isCurrent ? 'current' : '' %>">
-                  <div class="track-dot"></div>
-                  <span class="track-label"><%= step.label %></span>
-                </div>
-                <% if (si < steps.length - 1) { %>
-                <div class="track-line <%= isDone && currentIdx > stepIdx ? 'filled' : '' %>"></div>
-                <% } %>
-              <% }); %>
+            <div class="order-timeline">
+              <ol class="order-timeline-list">
+                <% history.forEach(function(entry, hi) { %>
+                  <li class="timeline-entry <%= hi === history.length - 1 ? 'timeline-current' : 'timeline-done' %>">
+                    <span class="timeline-dot"></span>
+                    <div class="timeline-body">
+                      <strong><%= statusLabelsMy[entry.status] || entry.status %></strong>
+                      <time><%= new Date(entry.timestamp).toLocaleString('vi-VN') %></time>
+                      <% if (entry.note) { %><p><%= entry.note %></p><% } %>
+                      <% if (entry.actorName) { %><small><%= entry.actorName %><% if (entry.actorRole && entry.actorRole !== 'system') { %> · <%= entry.actorRole %><% } %></small><% } %>
+                    </div>
+                  </li>
+                <% }); %>
+              </ol>
+            </div>
+            <div class="order-detail-link">
+              <a href="/user/track-order/<%= order.orderCode || order._id %>" class="btn btn-small btn-secondary">Xem chi tiết &amp; theo dõi</a>
             </div>
 
             <div class="order-details">
@@ -139,7 +128,7 @@
             <% } %>
 
             <!-- Rating section -->
-            <% if (order.status === 'completed' || order.status === 'delivered') { %>
+            <% if (['completed', 'delivered', 'delivered_success', 'served'].includes(order.status)) { %>
               <% if (order.rating) { %>
               <!-- Already rated - show rating -->
               <div class="rating-display-section">
@@ -212,17 +201,19 @@
 .filter-tab.active { background: #8b6f47; color: white; border-color: #6d5636; }
 
 /* Tracking timeline */
-.tracking-timeline { display: flex; align-items: center; padding: 16px 20px; margin-bottom: 16px; background: #faf8f5; border-radius: 10px; gap: 0; overflow-x: auto; }
-.track-step { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 60px; position: relative; }
-.track-dot { width: 16px; height: 16px; border-radius: 50%; background: #e0d8ce; border: 2px solid #e0d8ce; transition: all 0.3s; flex-shrink: 0; }
-.track-step.done .track-dot { background: #2e7d32; border-color: #2e7d32; }
-.track-step.current .track-dot { background: white; border-color: #8b6f47; box-shadow: 0 0 0 4px rgba(139,111,71,0.15); }
-.track-step.current.done .track-dot { background: #8b6f47; border-color: #8b6f47; box-shadow: 0 0 0 4px rgba(139,111,71,0.15); }
-.track-label { font-size: 0.7rem; color: #999; font-weight: 500; text-align: center; white-space: nowrap; }
-.track-step.done .track-label { color: #2e7d32; font-weight: 600; }
-.track-step.current .track-label { color: #8b6f47; font-weight: 700; }
-.track-line { flex: 1; height: 3px; background: #e0d8ce; min-width: 20px; border-radius: 2px; }
-.track-line.filled { background: #2e7d32; }
+.order-timeline { padding: 16px 20px; margin-bottom: 16px; background: #faf8f5; border-radius: 10px; }
+.order-timeline-list { list-style: none; margin: 0; padding: 0; }
+.timeline-entry { position: relative; padding: 0 0 18px 26px; }
+.timeline-entry:last-child { padding-bottom: 0; }
+.timeline-entry::before { content: ''; position: absolute; left: 6px; top: 16px; bottom: -2px; width: 2px; background: #e0d8ce; }
+.timeline-entry:last-child::before { display: none; }
+.timeline-dot { position: absolute; left: 0; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: #2e7d32; border: 2px solid #2e7d32; }
+.timeline-entry.timeline-current .timeline-dot { background: #8b6f47; border-color: #8b6f47; box-shadow: 0 0 0 4px rgba(139,111,71,0.15); }
+.timeline-body strong { display: block; font-size: 0.95rem; color: #2c2c2c; }
+.timeline-body time { display: block; font-size: 0.78rem; color: #999; margin: 2px 0; }
+.timeline-body p { margin: 4px 0 0; font-size: 0.85rem; color: #555; line-height: 1.4; }
+.timeline-body small { display: block; margin-top: 3px; font-size: 0.75rem; color: #8b6f47; font-weight: 600; }
+.order-detail-link { margin-bottom: 16px; }
 
 .orders-list {
   display: flex;

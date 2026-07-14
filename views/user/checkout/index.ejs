@@ -57,9 +57,13 @@
                             <span>-<%= totalDiscount.toLocaleString('vi-VN') %>d</span>
                         </div>
                     <% } %>
+                    <div class="price-row discount-row" id="couponRow" style="display:none;">
+                        <span>Mã Giảm Giá:</span>
+                        <span id="couponAmount">0d</span>
+                    </div>
                     <div class="price-row final-total">
                         <span>Thanh Tien:</span>
-                        <span><%= finalTotal.toLocaleString('vi-VN') %>d</span>
+                        <span id="finalTotalDisplay"><%= finalTotal.toLocaleString('vi-VN') %>d</span>
                     </div>
                 </div>
             </div>
@@ -154,8 +158,12 @@
                 <div class="form-section-title">Khuyen Mai</div>
                 
                 <div class="form-group">
-                    <label for="couponCode">Nhap Ma Giam Gia (Neu Co)</label>
-                    <input type="text" id="couponCode" name="couponCode" placeholder="VD: SUMMER2024" maxlength="50" style="text-transform: uppercase;">
+                    <label for="couponCode">Nhập Mã Giảm Giá (Nếu Có)</label>
+                    <div class="coupon-input-row">
+                        <input type="text" id="couponCode" name="couponCode" placeholder="VD: SUMMER2024" maxlength="50" style="text-transform: uppercase;">
+                        <button type="button" id="applyCouponBtn" class="btn btn-secondary">Áp Dụng</button>
+                    </div>
+                    <p id="couponFeedback" class="coupon-feedback" role="status" aria-live="polite"></p>
                 </div>
 
                 <% if (checkoutUser) { %>
@@ -178,46 +186,64 @@
 </section>
 
 <script>
-function updateFormDisplay() {
-    var orderType = document.querySelector('input[name="orderType"]:checked').value;
-    var dineInSection = document.getElementById('dineInSection');
-    var takeawaySection = document.getElementById('takeawaySection');
-    var deliveryAddress = document.getElementById('deliveryAddress');
-    var branchId = document.getElementById('branchId');
-    var guests = document.getElementById('guests');
-    var takeawayCard = document.getElementById('takeawayCard');
-    var dineInCard = document.getElementById('dineInCard');
-    
-    if (orderType === 'dine-in') {
-        dineInSection.style.display = 'block';
-        takeawaySection.style.display = 'none';
-        deliveryAddress.required = false;
-        branchId.required = true;
-        guests.required = true;
-        dineInCard.classList.add('selected');
-        takeawayCard.classList.remove('selected');
-        
-        var hasBranches = document.querySelectorAll('#branchId option:not([disabled])').length > 1;
-        if (!hasBranches) {
-            alert('Cac mon trong gio hang khong co san tai cung mot chi nhanh. Vui long chon Mang Ve.');
-            document.querySelector('input[name="orderType"][value="takeaway"]').checked = true;
-            updateFormDisplay();
-            return;
-        }
-    } else {
-        dineInSection.style.display = 'none';
-        takeawaySection.style.display = 'block';
-        deliveryAddress.required = true;
-        branchId.required = false;
-        guests.required = false;
-        takeawayCard.classList.add('selected');
-        dineInCard.classList.remove('selected');
-    }
-}
+(function () {
+    var baseTotal = <%= finalTotal %>;
+    var fmt = function (n) { return Math.round(n).toLocaleString('vi-VN') + 'd'; };
 
-document.addEventListener('DOMContentLoaded', function() {
-    updateFormDisplay();
-});
+    var applyBtn = document.getElementById('applyCouponBtn');
+    var codeInput = document.getElementById('couponCode');
+    var feedback = document.getElementById('couponFeedback');
+    var couponRow = document.getElementById('couponRow');
+    var couponAmount = document.getElementById('couponAmount');
+    var finalDisplay = document.getElementById('finalTotalDisplay');
+
+    function resetCoupon() {
+        couponRow.style.display = 'none';
+        couponAmount.textContent = '0d';
+        finalDisplay.textContent = fmt(baseTotal);
+    }
+
+    if (applyBtn) {
+        applyBtn.addEventListener('click', async function () {
+            var code = (codeInput.value || '').trim().toUpperCase();
+            if (!code) {
+                feedback.textContent = 'Vui lòng nhập mã giảm giá.';
+                feedback.className = 'coupon-feedback error';
+                resetCoupon();
+                return;
+            }
+            applyBtn.disabled = true;
+            feedback.textContent = 'Đang kiểm tra...';
+            feedback.className = 'coupon-feedback';
+            try {
+                var res = await fetch('/user/validate-coupon', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, orderTotal: baseTotal })
+                });
+                var data = await res.json();
+                if (data.valid) {
+                    couponRow.style.display = 'flex';
+                    couponAmount.textContent = '-' + fmt(data.discount);
+                    finalDisplay.textContent = fmt(data.finalAmount);
+                    feedback.textContent = 'Áp dụng mã ' + data.code + ' thành công! Giảm ' + fmt(data.discount) + '.';
+                    feedback.className = 'coupon-feedback success';
+                    codeInput.value = data.code;
+                } else {
+                    feedback.textContent = data.message || 'Mã giảm giá không hợp lệ.';
+                    feedback.className = 'coupon-feedback error';
+                    resetCoupon();
+                }
+            } catch (err) {
+                feedback.textContent = 'Không thể kiểm tra mã. Vui lòng thử lại.';
+                feedback.className = 'coupon-feedback error';
+                resetCoupon();
+            } finally {
+                applyBtn.disabled = false;
+            }
+        });
+    }
+})();
 </script>
 
 <style>
@@ -284,6 +310,26 @@ document.addEventListener('DOMContentLoaded', function() {
     font-weight: 600;
     font-size: 0.85rem;
 }
+
+.coupon-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+.coupon-input-row input {
+    flex: 1;
+}
+.coupon-input-row .btn {
+    white-space: nowrap;
+}
+.coupon-feedback {
+    margin: 8px 0 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+    min-height: 1em;
+}
+.coupon-feedback.success { color: #28a745; }
+.coupon-feedback.error { color: #c0392b; }
 
 .price-summary {
     margin-top: 20px;

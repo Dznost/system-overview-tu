@@ -589,6 +589,9 @@ router.get("/checkout", async (req, res) => {
   }
 })
 
+// Validate a coupon code against the current cart total (used by checkout live-apply)
+router.post("/validate-coupon", require("../controllers/couponController").validateCoupon)
+
 router.post("/order", async (req, res) => {
   try {
     const {
@@ -1098,10 +1101,22 @@ router.post("/track-order", async (req, res) => {
     }
 
     const phone = normalizePhone(req.body.phone)
-    const orders = phone ? await Order.find({ customerPhoneNormalized: phone })
-      .populate("shipperId", "name role")
-      .populate("staffId", "name role")
-      .sort({ createdAt: -1 }).limit(25) : []
+    let orders = []
+    if (phone) {
+      // Include orders placed as a guest with this phone AND orders from any registered
+      // account whose phone matches, so the customer sees every order for this number.
+      const candidateUsers = await User.find({ phone: { $ne: null } }).select("_id phone")
+      const matchedUserIds = candidateUsers
+        .filter((u) => u.phone && normalizePhone(u.phone) === phone)
+        .map((u) => u._id)
+      const orConditions = [{ customerPhoneNormalized: phone }]
+      if (matchedUserIds.length) orConditions.push({ userId: { $in: matchedUserIds } })
+      orders = await Order.find({ $or: orConditions })
+        .populate("shipperId", "name role")
+        .populate("staffId", "name role")
+        .sort({ createdAt: -1 })
+        .limit(50)
+    }
 
     if (!phone || orders.length === 0) {
       const failed = recordFailure(req)
@@ -1116,6 +1131,11 @@ router.post("/track-order", async (req, res) => {
 
     clearFailures(req)
     grantGuestAccess(req, phone)
+    // Remember every order returned so the customer can open its detail page without
+    // being asked to log in, including orders that belong to a registered account.
+    req.session.guestOrderIds = [
+      ...new Set([...(req.session.guestOrderIds || []), ...orders.map((o) => o._id.toString())]),
+    ]
     res.render("user/track-order", {
       orders, order: null, review: null, errorMsg: "",
       success: `Đã tìm thấy ${orders.length} đơn hàng gần đây.`,
@@ -1283,7 +1303,7 @@ router.post("/orders/:id/rate", checkAuth, async (req, res) => {
       return res.redirect("/user/orders")
     }
 
-    if (order.status !== "completed" && order.status !== "delivered") {
+    if (!["completed", "delivered", "delivered_success", "served"].includes(order.status)) {
       req.session.message = { type: "error", text: "Chi co the danh gia don hang da hoan thanh hoac da giao" }
       return res.redirect("/user/orders")
     }
