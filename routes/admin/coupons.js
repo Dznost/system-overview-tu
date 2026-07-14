@@ -16,5 +16,6 @@ router.post("/", checkAdmin, couponController.createCoupon);
 router.get("/:id/edit", checkAdmin, couponController.getEditCouponForm);
 router.post("/:id", checkAdmin, couponController.updateCoupon);
 router.get("/:id/delete", checkAdmin, couponController.deleteCoupon);
+router.post("/:id/delete", checkAdmin, couponController.deleteCoupon);
 
 module.exports = router;

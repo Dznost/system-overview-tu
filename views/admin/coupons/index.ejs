@@ -13,6 +13,13 @@
             </a>
         </header>
 
+        <% if (typeof success !== 'undefined' && success) { %>
+            <div class="alert-banner alert-success"><%= success %></div>
+        <% } %>
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert-banner alert-error"><%= error %></div>
+        <% } %>
+
         <% if (coupons && coupons.length > 0) { %>
             <div class="table-wrapper">
                 <table class="data-table">
@@ -50,7 +57,9 @@
                                 </td>
                                 <td><%= new Date(coupon.validUntil).toLocaleDateString('vi-VN') %></td>
                                 <td>
-                                    <% if (new Date() > new Date(coupon.validUntil)) { %>
+                                    <% if (coupon.isActive === false) { %>
+                                        <span class="status-badge exhausted">Ngừng</span>
+                                    <% } else if (new Date() > new Date(coupon.validUntil)) { %>
                                         <span class="status-badge expired">Hết Hạn</span>
                                     <% } else if ((coupon.usedCount || 0) >= coupon.maxUses) { %>
                                         <span class="status-badge exhausted">Hết Lượt</span>
@@ -98,6 +107,14 @@
     background: #f9f7f4;
     min-height: 100vh;
 }
+.alert-banner {
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-weight: 600;
+}
+.alert-banner.alert-success { background: #e9f2e7; color: #305f2e; }
+.alert-banner.alert-error { background: #f9e9e6; color: #8a2921; }
 .page-container {
     max-width: 1200px;
     margin: 0 auto;

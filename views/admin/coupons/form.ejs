@@ -30,6 +30,12 @@
             </div>
         </header>
 
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-error" role="alert" style="margin-bottom:16px;padding:14px 18px;background:#f9e9e6;color:#8a2921;border-radius:10px;font-weight:600;">
+                <%= error %>
+            </div>
+        <% } %>
+
         <form method="POST" action="<%= coupon ? '/admin/coupons/' + coupon._id : '/admin/coupons' %>" class="modern-form">
             <div class="form-layout">
                 <div class="form-main">
@@ -131,12 +137,30 @@
 
                             <div class="field-group">
                                 <label for="applicableTo" class="field-label">
-                                    Ap Dung Cho
+                                    Áp Dụng Cho
                                 </label>
-                                <textarea id="applicableTo" name="applicableTo" rows="3" 
-                                    placeholder="all (tat ca) / dish (mon an) / product (san pham)" 
-                                    class="field-textarea"><%= coupon && coupon.applicableTo ? coupon.applicableTo.join(', ') : '' %></textarea>
-                                <span class="field-hint">De trong de ap dung cho tat ca san pham</span>
+                                <% const appl = (coupon && coupon.applicableTo && coupon.applicableTo.length) ? coupon.applicableTo : ['all']; %>
+                                <div class="select-wrapper">
+                                    <select id="applicableTo" name="applicableTo" class="field-select">
+                                        <option value="all" <%= appl.includes('all') ? 'selected' : '' %>>Tất cả (món ăn &amp; đồ gia dụng)</option>
+                                        <option value="dishes" <%= (appl.includes('dishes') && !appl.includes('all')) ? 'selected' : '' %>>Chỉ món ăn</option>
+                                        <option value="products" <%= (appl.includes('products') && !appl.includes('all')) ? 'selected' : '' %>>Chỉ đồ gia dụng</option>
+                                    </select>
+                                </div>
+                                <span class="field-hint">Chọn phạm vi đơn hàng được áp dụng mã</span>
+                            </div>
+
+                            <div class="field-group">
+                                <label for="isActive" class="field-label">
+                                    Trạng Thái
+                                </label>
+                                <div class="select-wrapper">
+                                    <select id="isActive" name="isActive" class="field-select">
+                                        <option value="true" <%= (!coupon || coupon.isActive) ? 'selected' : '' %>>Hoạt động</option>
+                                        <option value="false" <%= (coupon && !coupon.isActive) ? 'selected' : '' %>>Ngừng áp dụng</option>
+                                    </select>
+                                </div>
+                                <span class="field-hint">Mã ngừng áp dụng sẽ không dùng được khi thanh toán</span>
                             </div>
                         </div>
                     </div>
