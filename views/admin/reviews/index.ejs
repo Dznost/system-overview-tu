@@ -1,48 +1,58 @@
 <div class="admin-layout">
   <div class="container py-6">
-    <h1 class="text-3xl font-bold mb-6">Quản Lý Đánh Giá Sản Phẩm</h1>
+    <h1 class="text-3xl font-bold mb-2">Quản Lý Đánh Giá Sản Phẩm</h1>
+    <p class="reviews-subtitle">Mỗi khách hàng và mỗi sản phẩm có một ô trò chuyện riêng để lưu và phản hồi đánh giá.</p>
 
-    <% if (reviews && reviews.length > 0) { %>
-      <div class="space-y-4">
-        <% reviews.forEach(review => { %>
-          <div class="review-card card p-4 border rounded">
-            <div class="flex justify-between items-start">
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-2">
-                  <strong><%= review.userId ? review.userId.name || 'Khách Hàng' : 'Ẩn Danh' %></strong>
-                  <span class="text-sm text-gray-500">
-                    <%= new Date(review.createdAt).toLocaleDateString('vi-VN') %>
-                  </span>
-                  <% if (review.verifiedPurchase) { %>
-                    <span class="badge badge-success text-xs">Đã Mua</span>
+    <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <div class="review-stats">
+      <div class="stat-box"><span><%= stats.total %></span><small>Tổng đánh giá</small></div>
+      <div class="stat-box"><span><%= stats.pending %></span><small>Chờ duyệt</small></div>
+      <div class="stat-box"><span><%= stats.approved %></span><small>Đã duyệt</small></div>
+      <div class="stat-box"><span><%= stats.rejected %></span><small>Đã từ chối</small></div>
+    </div>
+
+    <% if (customerGroups && customerGroups.length > 0) { %>
+      <div class="customer-groups">
+        <% customerGroups.forEach(group => { %>
+          <section class="customer-group">
+            <header class="customer-group-head">
+              <div>
+                <span class="customer-avatar"><%= group.customerName.charAt(0).toUpperCase() %></span>
+                <div>
+                  <strong><%= group.customerName %></strong>
+                  <small><%= group.isGuest ? 'Khách vãng lai' : 'Tài khoản thành viên' %> · <%= group.threads.length %> sản phẩm</small>
+                </div>
+              </div>
+            </header>
+
+            <div class="product-threads">
+              <% group.threads.forEach(review => { %>
+                <article class="product-thread">
+                  <div class="product-thread-head">
+                    <div>
+                      <strong><%= review.productId ? review.productId.name : (review.dishId ? review.dishId.name : 'Sản phẩm') %></strong>
+                      <% if (review.productSku || (review.productId && review.productId.sku)) { %>
+                        <span class="sku-tag"><%= review.productSku || review.productId.sku %></span>
+                      <% } %>
+                    </div>
+                    <div class="thread-meta">
+                      <span class="stars">
+                        <% for (let i = 0; i < 5; i++) { %><span class="<%= i < review.rating ? 'star-on' : 'star-off' %>"><%= i < review.rating ? '★' : '☆' %></span><% } %>
+                      </span>
+                      <span class="badge <%= review.status === 'approved' ? 'badge-success' : (review.status === 'rejected' ? 'badge-danger' : 'badge-warning') %>">
+                        <%= review.status === 'approved' ? 'Đã duyệt' : (review.status === 'rejected' ? 'Đã từ chối' : 'Chờ duyệt') %>
+                      </span>
+                    </div>
+                  </div>
+
+                  <% if (review.orderId) { %>
+                    <p class="thread-order">Đơn hàng: <strong><%= review.orderId.orderCode || '#' + review.orderId._id.toString().slice(-8).toUpperCase() %></strong></p>
                   <% } %>
-                </div>
 
-                <div class="stars mb-2">
-                  <% for (let i = 0; i < 5; i++) { %>
-                    <span class="text-yellow-400"><%= i < review.rating ? '★' : '☆' %></span>
-                  <% } %>
-                  <span class="ml-2"><strong><%= review.rating %>/5</strong></span>
-                </div>
-
-                <% if (review.productId) { %>
-                  <p class="text-sm text-gray-600">Sản Phẩm: <strong><%= review.productId.name %></strong></p>
-                <% } %>
-                <% if (review.dishId) { %>
-                  <p class="text-sm text-gray-600">Món Ăn: <strong><%= review.dishId.name %></strong></p>
-                <% } %>
-
-                <% if (review.orderId) { %>
-                  <p class="text-sm text-gray-600">Đơn hàng: <strong><%= review.orderId.orderCode || '#' + review.orderId._id.toString().slice(-8).toUpperCase() %></strong> · <%= review.orderId.status %></p>
-                <% } %>
-
-                <div class="review-content mt-2 p-3 bg-gray-50 rounded">
-                  <p><%= review.comment %></p>
-                </div>
-
-                <% if (review.messages && review.messages.length) { %>
                   <div class="admin-thread">
-                    <% review.messages.forEach(message => { %>
+                    <% (review.messages && review.messages.length ? review.messages : [{ senderRole: 'customer', senderName: group.customerName, content: review.comment, createdAt: review.createdAt }]).forEach(message => { %>
                       <div class="admin-message <%= message.senderRole === 'admin' ? 'from-admin' : '' %>">
                         <strong><%= message.senderName %></strong>
                         <small><%= new Date(message.createdAt).toLocaleString('vi-VN') %></small>
@@ -50,37 +60,23 @@
                       </div>
                     <% }) %>
                   </div>
+
                   <form method="POST" action="/admin/reviews/<%= review._id %>/reply" class="admin-reply-form">
-                    <label for="reply-<%= review._id %>">Phản hồi khách hàng</label>
-                    <textarea id="reply-<%= review._id %>" name="content" maxlength="1000" required></textarea>
-                    <button type="submit" class="btn btn-primary">Gửi phản hồi</button>
+                    <textarea name="content" maxlength="1000" placeholder="Phản hồi khách hàng..." required></textarea>
+                    <div class="thread-actions">
+                      <button type="submit" class="btn btn-primary">Gửi phản hồi</button>
+                      <% if (review.status === 'pending') { %>
+                        <button type="submit" formaction="/admin/reviews/<%= review._id %>/approve" formmethod="POST" class="btn btn-success">Duyệt</button>
+                        <button type="submit" formaction="/admin/reviews/<%= review._id %>/reject" formmethod="POST" class="btn btn-danger">Từ chối</button>
+                      <% } %>
+                      <a href="/admin/reviews/<%= review._id %>/delete" class="btn btn-ghost" onclick="return confirm('Xóa đánh giá này?')">Xóa</a>
+                    </div>
                   </form>
-                <% } %>
-
-                <% if (review.status === 'pending') { %>
-                  <div class="mt-3 flex gap-2">
-                    <form method="POST" action="/admin/reviews/<%= review._id %>/approve" style="display: inline;">
-                      <button type="submit" class="btn btn-sm btn-success">Duyệt</button>
-                    </form>
-                    <form method="POST" action="/admin/reviews/<%= review._id %>/reject" style="display: inline;">
-                      <button type="submit" class="btn btn-sm btn-danger">Từ Chối</button>
-                    </form>
-                  </div>
-                <% } else { %>
-                  <div class="mt-2">
-                    <span class="badge <%= review.status === 'approved' ? 'badge-success' : 'badge-danger' %>">
-                      <%= review.status === 'approved' ? 'Đã Duyệt' : 'Đã Từ Chối' %>
-                    </span>
-                  </div>
-                <% } %>
-              </div>
-
-              <form method="POST" action="/admin/reviews/<%= review._id %>/delete" style="display: inline;" onsubmit="return confirm('Xóa đánh giá này?');">
-                <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
-              </form>
+                </article>
+              <% }) %>
             </div>
-          </div>
-        <% }); %>
+          </section>
+        <% }) %>
       </div>
     <% } else { %>
       <div class="alert alert-info">Chưa có đánh giá nào.</div>
@@ -89,5 +85,34 @@
 </div>
 
 <style>
-.admin-thread{display:flex;flex-direction:column;gap:10px;margin-top:14px}.admin-message{max-width:75%;padding:12px;border-radius:10px;background:#f4f1ec}.admin-message.from-admin{margin-left:auto;background:#eee4d5}.admin-message small{display:block;color:#6b7280;margin-top:3px}.admin-message p{margin:7px 0 0}.admin-reply-form{display:flex;flex-direction:column;gap:8px;margin-top:12px}.admin-reply-form textarea{min-height:76px;border:1px solid #d5cec3;border-radius:8px;padding:10px;font:inherit}.admin-reply-form button{align-self:flex-start}
+.reviews-subtitle{color:#6b645d;margin-bottom:20px}
+.review-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-box{background:#fff;border:1px solid #e4ddd2;border-radius:12px;padding:16px;text-align:center}
+.stat-box span{display:block;font-size:1.7rem;font-weight:800;color:#8b6f47}
+.stat-box small{color:#6b645d}
+.customer-groups{display:flex;flex-direction:column;gap:22px}
+.customer-group{background:#fbf9f6;border:1px solid #e4ddd2;border-radius:16px;padding:20px}
+.customer-group-head>div{display:flex;align-items:center;gap:14px}
+.customer-avatar{width:44px;height:44px;border-radius:50%;background:#8b6f47;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem}
+.customer-group-head strong{display:block;font-size:1.05rem}
+.customer-group-head small{color:#6b645d}
+.product-threads{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:16px}
+.product-thread{background:#fff;border:1px solid #e4ddd2;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.product-thread-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.product-thread-head>div:first-child{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sku-tag{font-size:.7rem;font-weight:800;color:#725636;background:#f0e8dc;border-radius:6px;padding:3px 8px;letter-spacing:.05em}
+.thread-meta{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.star-on{color:#e0a800}.star-off{color:#d5cec3}
+.badge-warning{background:#fbeecb;color:#8a6d1b}
+.thread-order{font-size:.82rem;color:#6b645d;margin:0}
+.admin-thread{display:flex;flex-direction:column;gap:8px}
+.admin-message{max-width:85%;padding:10px 12px;border-radius:10px;background:#f4f1ec}
+.admin-message.from-admin{margin-left:auto;background:#eee4d5}
+.admin-message small{display:block;color:#6b7280;margin-top:3px}
+.admin-message p{margin:6px 0 0}
+.admin-reply-form{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.admin-reply-form textarea{min-height:64px;border:1px solid #d5cec3;border-radius:8px;padding:10px;font:inherit}
+.thread-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn-ghost{background:transparent;border:1px solid #d5cec3;color:#8a2921}
+@media(max-width:640px){.review-stats{grid-template-columns:repeat(2,1fr)}.product-threads{grid-template-columns:1fr}}
 </style>

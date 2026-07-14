@@ -1140,9 +1140,27 @@ router.get("/track-order/:code", async (req, res) => {
     const guestOwnsOrder = hasGuestAccess(req, order.customerPhoneNormalized) || (req.session.guestOrderIds || []).includes(order._id.toString())
     if (!ownsOrder && !guestOwnsOrder) return res.redirect("/user/track-order?error=Vui lòng xác minh số điện thoại trước")
 
-    const review = await Review.findOne({ orderId: order._id })
+    await order.populate("items.productId", "name sku")
+    const reviewableProducts = (order.items || [])
+      .filter((item) => item.productId)
+      .map((item) => ({
+        productId: item.productId._id,
+        name: item.productId.name || item.name,
+        sku: item.productId.sku || "",
+      }))
+    const reviewOwnerFilter = order.userId
+      ? { userId: order.userId }
+      : { guestPhoneNormalized: order.customerPhoneNormalized }
+    const reviews = reviewableProducts.length
+      ? await Review.find({
+          ...reviewOwnerFilter,
+          productId: { $in: reviewableProducts.map((p) => p.productId) },
+        })
+      : []
+    const reviewsByProduct = {}
+    reviews.forEach((r) => { if (r.productId) reviewsByProduct[r.productId.toString()] = r })
     res.render("user/track-order", {
-      orders: [], order, review,
+      orders: [], order, reviewableProducts, reviewsByProduct,
       errorMsg: req.query.error || "", success: req.query.success || "",
       remainingAttempts: getLimit(req).remaining, retryMinutes: 0,
       title: `Đơn ${orderCode(order)}`,
@@ -1169,27 +1187,40 @@ router.post("/track-order/:code/review", async (req, res) => {
 
     const rating = Number(req.body.rating)
     const content = String(req.body.comment || "").trim().slice(0, 1000)
+    const productId = String(req.body.productId || "")
     if (!Number.isInteger(rating) || rating < 1 || rating > 5 || content.length < 2) {
       return res.redirect(`/user/track-order/${order.orderCode}?error=Vui lòng chọn 1-5 sao và nhập nội dung đánh giá`)
     }
-    if (await Review.exists({ orderId: order._id })) {
-      return res.redirect(`/user/track-order/${order.orderCode}?error=Đơn hàng này đã được đánh giá`)
+
+    await order.populate("items.productId", "name sku")
+    const orderedItem = (order.items || []).find(
+      (item) => item.productId && item.productId._id.toString() === productId
+    )
+    if (!orderedItem) {
+      return res.redirect(`/user/track-order/${order.orderCode}?error=Sản phẩm không thuộc đơn hàng này`)
     }
 
-    await Review.create({
+    const customerName = order.fullName || "Khách hàng"
+    const ownerFilter = order.userId
+      ? { userId: order.userId }
+      : { guestPhoneNormalized: order.customerPhoneNormalized }
+    let review = await Review.findOne({ ...ownerFilter, productId })
+    if (review) {
+      return res.redirect(`/user/track-order/${order.orderCode}?error=Bạn đã đánh giá sản phẩm này rồi`)
+    }
+    review = new Review({
       orderId: order._id,
       userId: order.userId || null,
       guestPhoneNormalized: order.userId ? null : order.customerPhoneNormalized,
-      customerName: order.fullName || "Khách hàng",
+      productId,
+      productSku: (orderedItem.productId && orderedItem.productId.sku) || "",
+      customerName,
       rating, comment: content, verifiedPurchase: true, status: "approved",
-      messages: [{ senderRole: "customer", senderId: order.userId || null, senderName: order.fullName || "Khách hàng", content }],
+      messages: [{ senderRole: "customer", senderId: order.userId || null, senderName: customerName, content }],
     })
-    order.rating = rating
-    order.ratingComment = content
-    order.ratedAt = new Date()
-    await order.save()
+    await review.save()
     if (verifiedGuest) grantGuestAccess(req, phone)
-    res.redirect(`/user/track-order/${order.orderCode}?success=Cảm ơn bạn đã đánh giá đơn hàng`)
+    res.redirect(`/user/track-order/${order.orderCode}?success=Cảm ơn bạn đã đánh giá sản phẩm`)
   } catch (error) {
     console.error("[restaurant] Guest review error:", error)
     res.status(500).render("error", { error: "Không thể lưu đánh giá", layout: false })
@@ -1205,8 +1236,11 @@ router.post("/track-order/:code/reply", async (req, res) => {
     if (!ownsOrder && !guestOwnsOrder) return res.status(403).render("error", { error: "Không có quyền phản hồi", layout: false })
     const content = String(req.body.content || "").trim().slice(0, 1000)
     if (!content) return res.redirect(`/user/track-order/${order.orderCode}?error=Nội dung phản hồi không được để trống`)
-    const review = await Review.findOne({ orderId: order._id })
-    if (!review) return res.redirect(`/user/track-order/${order.orderCode}?error=Chưa có đánh giá cho đơn hàng`)
+    const ownerFilter = order.userId
+      ? { userId: order.userId }
+      : { guestPhoneNormalized: order.customerPhoneNormalized }
+    const review = await Review.findOne({ ...ownerFilter, productId: String(req.body.productId || "") })
+    if (!review) return res.redirect(`/user/track-order/${order.orderCode}?error=Chưa có đánh giá cho sản phẩm này`)
     review.messages.push({ senderRole: "customer", senderId: order.userId || null, senderName: order.fullName || "Khách hàng", content })
     review.updatedAt = new Date()
     await review.save()

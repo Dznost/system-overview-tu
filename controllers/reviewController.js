@@ -20,9 +20,22 @@ exports.getReviews = async (req, res) => {
     const reviews = await Review.find(query)
       .populate("userId", "name email")
       .populate("orderId", "orderCode status fullName phone")
-      .populate("productId", "name")
+      .populate("productId", "name sku")
       .populate("dishId", "name")
       .sort({ createdAt: -1 });
+
+    // Group threads by customer, then by product, so each customer + product pair
+    // appears as a single conversation box in the admin panel.
+    const groupsMap = new Map();
+    reviews.forEach((review) => {
+      const customerName = (review.userId && review.userId.name) || review.customerName || "Khách vãng lai";
+      const customerKey = review.userId ? `u:${review.userId._id}` : `g:${review.guestPhoneNormalized || customerName}`;
+      if (!groupsMap.has(customerKey)) {
+        groupsMap.set(customerKey, { customerName, isGuest: !review.userId, threads: [] });
+      }
+      groupsMap.get(customerKey).threads.push(review);
+    });
+    const customerGroups = Array.from(groupsMap.values());
 
     const stats = {
       total: await Review.countDocuments(),
@@ -34,6 +47,7 @@ exports.getReviews = async (req, res) => {
     res.render("admin/reviews/index", {
       title: "Quan Ly Danh Gia San Pham",
       reviews,
+      customerGroups,
       stats,
       statusFilter,
       itemTypeFilter,
