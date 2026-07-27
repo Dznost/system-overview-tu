@@ -1,0 +1,91 @@
+<%
+  var txLabels = {
+    order_refund: 'Hoan tien don huy',
+    order_payment: 'Thanh toan don hang',
+    withdraw_payout: 'Chuyen ve ngan hang',
+    admin_adjustment: 'Dieu chinh tu quan tri'
+  };
+%>
+
+<section class="wallet-detail">
+  <div class="container">
+    <a href="/admin/refunds" class="back-link">&larr; Quay lai danh sach yeu cau</a>
+
+    <header class="detail-header">
+      <div>
+        <span class="eyebrow">Vi khach hang</span>
+        <h1><%= walletUser.name %></h1>
+        <p><%= walletUser.email %><% if (walletUser.phone) { %> · <%= walletUser.phone %><% } %></p>
+      </div>
+      <div class="balance-badge">
+        <span>So du hien tai</span>
+        <strong><%= (walletUser.walletBalance || 0).toLocaleString('vi-VN') %>d</strong>
+      </div>
+    </header>
+
+    <h2>Lich su giao dich</h2>
+    <% if (transactions && transactions.length) { %>
+      <div class="table-wrap">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th>Thoi gian</th><th>Noi dung</th><th>Don hang</th>
+              <th class="right">So tien</th><th class="right">So du sau</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% transactions.forEach(function(tx) { %>
+              <tr>
+                <td><%= new Date(tx.createdAt).toLocaleString('vi-VN') %></td>
+                <td>
+                  <strong><%= txLabels[tx.type] || tx.type %></strong>
+                  <% if (tx.description) { %><small><%= tx.description %></small><% } %>
+                </td>
+                <td><%= tx.orderId && tx.orderId.orderCode ? tx.orderId.orderCode : '—' %></td>
+                <td class="right <%= tx.direction === 'credit' ? 'credit' : 'debit' %>">
+                  <%= tx.direction === 'credit' ? '+' : '−' %><%= tx.amount.toLocaleString('vi-VN') %>d
+                </td>
+                <td class="right"><%= tx.balanceAfter.toLocaleString('vi-VN') %>d</td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <div class="empty-state"><p>Khach hang nay chua co giao dich vi nao.</p></div>
+    <% } %>
+  </div>
+</section>
+
+<style>
+  .wallet-detail { padding: 40px 0 80px; }
+  .wallet-detail .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  .back-link { display: inline-block; margin-bottom: 20px; color: #8B6F47; font-size: 0.88rem; font-weight: 600; text-decoration: none; }
+  .back-link:hover { text-decoration: underline; }
+
+  .detail-header { display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; align-items: flex-start; padding-bottom: 24px; margin-bottom: 28px; border-bottom: 1px solid #e6e0d8; }
+  .detail-header .eyebrow { display: block; font-size: 0.72rem; letter-spacing: 1.6px; text-transform: uppercase; color: #8B6F47; font-weight: 700; margin-bottom: 8px; }
+  .detail-header h1 { font-size: 1.8rem; margin: 0 0 6px; color: #1f1f1f; }
+  .detail-header p { margin: 0; color: #5f5b55; font-size: 0.92rem; }
+
+  .balance-badge { background: #2a2a2a; border-radius: 12px; padding: 18px 26px; }
+  .balance-badge span { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.2px; color: #c9a86c; font-weight: 700; margin-bottom: 6px; }
+  .balance-badge strong { font-size: 1.6rem; color: #fff; }
+
+  .wallet-detail h2 { font-size: 1.2rem; margin: 0 0 16px; color: #1f1f1f; }
+
+  .table-wrap { overflow-x: auto; background: #fff; border: 1px solid #e6e0d8; border-radius: 10px; }
+  .tx-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .tx-table th { text-align: left; padding: 14px 16px; background: #faf8f4; color: #6b6560; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #e6e0d8; white-space: nowrap; }
+  .tx-table td { padding: 14px 16px; border-bottom: 1px solid #f0ece5; color: #3a3630; vertical-align: top; }
+  .tx-table tbody tr:last-child td { border-bottom: none; }
+  .tx-table td strong { display: block; font-weight: 600; }
+  .tx-table td small { display: block; color: #8a8378; font-size: 0.78rem; margin-top: 2px; }
+  .tx-table .right { text-align: right; white-space: nowrap; }
+  .tx-table .credit { color: #1b5e20; font-weight: 700; }
+  .tx-table .debit { color: #b71c1c; font-weight: 700; }
+
+  .empty-state { background: #fff; border: 1px dashed #d8d2c8; border-radius: 10px; padding: 40px 24px; text-align: center; }
+  .empty-state p { margin: 0; color: #6b6560; font-weight: 600; }
+</style>
