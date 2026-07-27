@@ -4,26 +4,84 @@
 
     <!-- Filter -->
     <div class="admin-card" style="margin-bottom:24px;">
-      <form method="GET" action="/admin/revenue" style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;">
-        <div class="form-group" style="flex:1;min-width:120px;">
-          <label for="year" style="display:block;font-size:0.85rem;font-weight:600;color:#555;margin-bottom:4px;">Nam:</label>
-          <select id="year" name="year" onchange="this.form.submit()" style="width:100%;padding:10px;border:1px solid #e0d8ce;border-radius:6px;font-size:0.9rem;">
-            <% for (var y = new Date().getFullYear(); y >= 2020; y--) { %>
-              <option value="<%= y %>" <%= y === currentYear ? 'selected' : '' %>><%= y %></option>
-            <% } %>
-          </select>
-        </div>
-        <div class="form-group" style="flex:1;min-width:120px;">
-          <label for="month" style="display:block;font-size:0.85rem;font-weight:600;color:#555;margin-bottom:4px;">Thang:</label>
-          <select id="month" name="month" onchange="this.form.submit()" style="width:100%;padding:10px;border:1px solid #e0d8ce;border-radius:6px;font-size:0.9rem;">
-            <option value="">Ca nam</option>
-            <% for (var m = 1; m <= 12; m++) { %>
-              <option value="<%= m %>" <%= m === currentMonth ? 'selected' : '' %>>Thang <%= m %></option>
-            <% } %>
-          </select>
-        </div>
-        <a href="/admin/revenue" class="btn btn-secondary">Reset</a>
-      </form>
+      <div style="margin-bottom:16px;">
+        <h3 style="font-size:0.9rem;font-weight:600;color:#333;margin-bottom:12px;">🔍 Bộ Lọc Nâng Cao</h3>
+        <form method="GET" action="/admin/revenue" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;align-items:flex-end;">
+          
+          <!-- Date Range Filter (New) -->
+          <div class="form-group">
+            <label for="startDate" style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:4px;">Từ Ngày:</label>
+            <input type="date" id="startDate" name="startDate" value="<%= startDate || '' %>" style="width:100%;padding:10px;border:1px solid #e0d8ce;border-radius:6px;font-size:0.9rem;">
+          </div>
+
+          <div class="form-group">
+            <label for="endDate" style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:4px;">Đến Ngày:</label>
+            <input type="date" id="endDate" name="endDate" value="<%= endDate || '' %>" style="width:100%;padding:10px;border:1px solid #e0d8ce;border-radius:6px;font-size:0.9rem;">
+          </div>
+
+          <!-- Year/Month (Fallback) -->
+          <div class="form-group">
+            <label for="year" style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:4px;">Năm:</label>
+            <select id="year" name="year" style="width:100%;padding:10px;border:1px solid #e0d8ce;border-radius:6px;font-size:0.9rem;">
+              <option value="">Tất cả</option>
+              <% for (var y = new Date().getFullYear(); y >= 2020; y--) { %>
+                <option value="<%= y %>" <%= y === currentYear ? 'selected' : '' %>><%= y %></option>
+              <% } %>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="month" style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:4px;">Tháng:</label>
+            <select id="month" name="month" style="width:100%;padding:10px;border:1px solid #e0d8ce;border-radius:6px;font-size:0.9rem;">
+              <option value="">Cả năm</option>
+              <% for (var m = 1; m <= 12; m++) { %>
+                <option value="<%= m %>" <%= m === currentMonth ? 'selected' : '' %>>Tháng <%= m %></option>
+              <% } %>
+            </select>
+          </div>
+
+          <!-- Branch Filter -->
+          <div class="form-group">
+            <label for="branchId" style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:4px;">Chi Nhánh:</label>
+            <select id="branchId" name="branchId" style="width:100%;padding:10px;border:1px solid #e0d8ce;border-radius:6px;font-size:0.9rem;">
+              <option value="all">Tất cả</option>
+              <% if (typeof allBranches !== 'undefined' && allBranches.length > 0) { %>
+                <% allBranches.forEach(branch => { %>
+                  <option value="<%= branch._id %>" <%= selectedBranchId === branch._id.toString() ? 'selected' : '' %>><%= branch.name %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+
+          <!-- Payment Method Filter -->
+          <div class="form-group">
+            <label for="paymentMethod" style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:4px;">Phương Thức:</label>
+            <select id="paymentMethod" name="paymentMethod" style="width:100%;padding:10px;border:1px solid #e0d8ce;border-radius:6px;font-size:0.9rem;">
+              <option value="all">Tất cả</option>
+              <option value="cash" <%= selectedPaymentMethod === 'cash' ? 'selected' : '' %>>Tiền Mặt</option>
+              <option value="bank" <%= selectedPaymentMethod === 'bank' ? 'selected' : '' %>>Chuyển Khoản</option>
+              <option value="transfer" <%= selectedPaymentMethod === 'transfer' ? 'selected' : '' %>>Transfer Online</option>
+            </select>
+          </div>
+
+          <!-- Revenue Type Filter -->
+          <div class="form-group">
+            <label for="revenueType" style="display:block;font-size:0.8rem;font-weight:600;color:#555;margin-bottom:4px;">Loại Doanh Thu:</label>
+            <select id="revenueType" name="revenueType" style="width:100%;padding:10px;border:1px solid #e0d8ce;border-radius:6px;font-size:0.9rem;">
+              <option value="all">Tất cả</option>
+              <option value="delivery" <%= selectedRevenueType === 'delivery' ? 'selected' : '' %>>Giao Hàng</option>
+              <option value="reception" <%= selectedRevenueType === 'reception' ? 'selected' : '' %>>Lễ Tân</option>
+              <option value="guest_order" <%= selectedRevenueType === 'guest_order' ? 'selected' : '' %>>Đặt Hộ</option>
+              <option value="walkin_assist" <%= selectedRevenueType === 'walkin_assist' ? 'selected' : '' %>>Walk-in</option>
+            </select>
+          </div>
+
+          <div style="display:flex;gap:8px;">
+            <button type="submit" class="btn btn-primary" style="width:100%;padding:10px;border:none;border-radius:6px;background:#1976d2;color:white;font-weight:600;cursor:pointer;font-size:0.9rem;">Lọc</button>
+            <a href="/admin/revenue" class="btn btn-secondary" style="width:100%;padding:10px;border:none;border-radius:6px;background:#e0d8ce;color:#333;font-weight:600;cursor:pointer;font-size:0.9rem;text-align:center;text-decoration:none;">Đặt Lại</a>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- ─── TONG DOANH THU HE THONG ───────────────────────────────────────── -->
@@ -94,8 +152,13 @@
           </thead>
           <tbody>
             <% shipperBreakdown.forEach(function(shipper) { %>
-            <tr>
-              <td><strong><%= shipper.name %></strong></td>
+            <tr style="<%= shipper.status === 'missing' ? 'background:#fff3cd;' : '' %>">
+              <td>
+                <strong><%= shipper.name %></strong>
+                <% if (shipper.status === 'missing') { %>
+                  <span style="font-size:0.75rem;color:#ff9800;margin-left:8px;padding:2px 6px;background:#ffe0b2;border-radius:3px;">⚠️ Chưa xác định</span>
+                <% } %>
+              </td>
               <td style="color:#888;font-size:0.88rem;"><%= shipper.email %></td>
               <td><span class="status-badge" style="background:#e3f2fd;color:#1565c0;"><%= shipper.count %> GD</span></td>
               <td><strong style="color:#1976d2;"><%= shipper.total.toLocaleString('vi-VN') %>d</strong></td>
@@ -224,8 +287,13 @@
           </thead>
           <tbody>
             <% receptionistBreakdown.forEach(function(rec) { %>
-            <tr>
-              <td><strong><%= rec.name %></strong></td>
+            <tr style="<%= rec.status === 'missing' ? 'background:#fff3cd;' : '' %>">
+              <td>
+                <strong><%= rec.name %></strong>
+                <% if (rec.status === 'missing') { %>
+                  <span style="font-size:0.75rem;color:#ff9800;margin-left:8px;padding:2px 6px;background:#ffe0b2;border-radius:3px;">⚠️ Chưa xác định</span>
+                <% } %>
+              </td>
               <td style="color:#888;font-size:0.88rem;"><%= rec.email %></td>
               <td><span class="status-badge" style="background:#e0f2f1;color:#00695c;"><%= rec.branchName %></span></td>
               <td><span class="status-badge" style="background:#e8f5e9;color:#2e7d32;"><%= rec.count %> GD</span></td>
@@ -271,8 +339,13 @@
           </thead>
           <tbody>
             <% (guestOrderStaffBreakdown || []).forEach(function(staff) { %>
-            <tr>
-              <td><strong><%= staff.name %></strong></td>
+            <tr style="<%= staff.status === 'missing' ? 'background:#fff3cd;' : '' %>">
+              <td>
+                <strong><%= staff.name %></strong>
+                <% if (staff.status === 'missing') { %>
+                  <span style="font-size:0.75rem;color:#ff9800;margin-left:8px;padding:2px 6px;background:#ffe0b2;border-radius:3px;">⚠️ Chưa xác định</span>
+                <% } %>
+              </td>
               <td style="color:#888;font-size:0.88rem;"><%= staff.email %></td>
               <td><span class="status-badge" style="background:#f5f3ff;color:#5b21b6;"><%= staff.count %> Don</span></td>
               <td><strong style="color:#7c3aed;"><%= staff.total.toLocaleString('vi-VN') %>d</strong></td>
