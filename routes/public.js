@@ -125,22 +125,50 @@ router.get("/dish/:id", async (req, res) => {
 router.get("/products", async (req, res) => {
   try {
     const search = req.query.search || ""
+    const minPrice = req.query.minPrice ? parseInt(req.query.minPrice) : 0
+    const maxPrice = req.query.maxPrice ? parseInt(req.query.maxPrice) : Infinity
+    const category = req.query.category || "all"
+    const sortBy = req.query.sortBy || "popular"
 
     // Rubric 1.1: chi hien thi hang con (quantity > 0), tru hang HOT van hien thi khi het (kem "Chay Hang")
     const query = {
       isActive: { $ne: false },
       $or: [{ quantity: { $gt: 0 } }, { isHot: true }],
+      price: { $gte: minPrice, $lte: maxPrice }
     }
+
     if (search) {
       query.$and = [
         { $or: [{ name: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }] },
       ]
     }
 
-    const products = await Product.find(query).sort({ isHot: -1, isBestSelling: -1, createdAt: -1 })
+    if (category && category !== "all") {
+      query.category = category
+    }
+
+    let sort = { isHot: -1, isBestSelling: -1, createdAt: -1 }
+    if (sortBy === "price_low") {
+      sort = { price: 1 }
+    } else if (sortBy === "price_high") {
+      sort = { price: -1 }
+    } else if (sortBy === "newest") {
+      sort = { createdAt: -1 }
+    }
+
+    const products = await Product.find(query).sort(sort)
+    
+    // Get categories for filter
+    const categories = await Product.distinct("category", { isActive: { $ne: false } })
+
     res.render("public/products/index", { 
       products, 
-      search, 
+      search,
+      minPrice,
+      maxPrice,
+      category,
+      sortBy,
+      categories: categories.filter(c => c),
       title: "San Pham",
       metaDescription: "Cac san pham chat luong cao cho nha bep va ban an cua ban."
     })
