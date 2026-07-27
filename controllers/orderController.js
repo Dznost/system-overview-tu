@@ -5,6 +5,7 @@ const Notification = require("../models/Notification");
 const Dish = require("../models/Dish");
 const inventoryManager = require("../utils/inventoryManager");
 const { appendHistory } = require("../utils/guestOrders");
+const { cancelOrderWithRefund } = require("../utils/orderCancellation");
 const { issueWarrantiesForOrder } = require("../utils/warrantyManager");
 const { awardLoyaltyForOrder } = require("../utils/loyaltyManager");
 
@@ -210,7 +211,7 @@ exports.updateOrderStatus = async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.redirect("/admin/orders");
     if (!canAdminTransition(order, status)) {
-      return res.redirect(`/admin/orders/${req.params.id}?success=Chuyển trạng thái không hợp lệ`);
+      return res.redirect(`/admin/orders/${req.params.id}?success=Chuyển trạng thái không hợp l��`);
     }
     const actor = await getActor(req);
     order.status = status;
@@ -427,41 +428,29 @@ exports.autoAssignToStaff = async (req, res) => {
   }
 };
 
-// Cancel order and restore inventory
+// Cancel order: restores inventory, voids revenue and refunds the customer wallet
 exports.cancelOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate("items.dishId");
-    
+    const order = await Order.findById(req.params.id).populate("items.dishId").populate("items.productId")
+
     if (!order) {
-      return res.redirect("/admin/orders");
+      return res.redirect("/admin/orders")
     }
-    
-    if (order.status === "cancelled") {
-      return res.redirect(`/admin/orders/${req.params.id}?success=Don hang da huy truoc do`);
-    }
-    
-    // Rubric 1.1: Huy don hang thi so luong duoc cong len (ca mon an va san pham)
-    for (const item of order.items) {
-      if (item.itemType === "dish" && item.dishId) {
-        await inventoryManager.incrementQuantity(
-          item.dishId._id || item.dishId,
-          order.branchId,
-          item.quantity
-        );
-      } else if (item.itemType === "product" && item.productId) {
-        await inventoryManager.incrementProductQuantity(
-          item.productId._id || item.productId,
-          order.branchId,
-          item.quantity
-        );
+
+    const actor = await getActor(req)
+    const result = await cancelOrderWithRefund(order, actor, { reason: req.body && req.body.reason })
+
+    if (!result.ok) {
+      if (result.reason === "already_cancelled") {
+        return res.redirect(`/admin/orders/${req.params.id}?success=Don hang da huy truoc do`)
       }
+      return res.redirect(`/admin/orders/${req.params.id}?error=${encodeURIComponent(result.reason)}`)
     }
-    
-    order.status = "cancelled";
-    await order.save();
-    
-    console.log("[restaurant] Order cancelled and inventory restored:", order._id);
-    res.redirect(`/admin/orders/${req.params.id}?success=Don hang da huy va hang ton kho da phuc hoi`);
+
+    const message = result.refundedAmount > 0
+      ? `Da huy don hang, phuc hoi ton kho va hoan ${result.refundedAmount.toLocaleString("vi-VN")}d vao vi khach hang`
+      : "Da huy don hang va phuc hoi ton kho"
+    res.redirect(`/admin/orders/${req.params.id}?success=${encodeURIComponent(message)}`)
   } catch (error) {
     console.error("[restaurant] Error in cancelOrder:", error);
     res.redirect("/admin/orders");

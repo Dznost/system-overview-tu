@@ -10,6 +10,10 @@ const Event = require("../models/Event")
 const Notification = require("../models/Notification")
 const Product = require("../models/Product")
 const Review = require("../models/Review")
+const WalletTransaction = require("../models/WalletTransaction")
+const RefundRequest = require("../models/RefundRequest")
+const walletManager = require("../utils/walletManager")
+const { cancelOrderWithRefund, NON_CANCELLABLE } = require("../utils/orderCancellation")
 const {
   normalizePhone,
   orderCode,
@@ -568,9 +572,11 @@ router.get("/checkout", async (req, res) => {
 
     // Rubric 5.5: Lay diem loyalty cua khach dang nhap
     let loyaltyPoints = 0
+    let walletBalance = 0
     if (req.session.user && req.session.user.id) {
       const user = await User.findById(req.session.user.id)
       loyaltyPoints = user && user.loyaltyPoints ? user.loyaltyPoints : 0
+      walletBalance = user && user.walletBalance ? user.walletBalance : 0
     }
 
     res.render("user/checkout/index", {
@@ -580,6 +586,7 @@ router.get("/checkout", async (req, res) => {
       finalTotal,
       isCODRestricted,
       loyaltyPoints,
+      walletBalance,
       checkoutUser: req.session.user || null,
       checkoutError: req.query.error || null,
     })
@@ -612,8 +619,11 @@ router.post("/order", async (req, res) => {
     if (!String(fullName || "").trim() || !normalizedPhone || !String(deliveryAddress || "").trim()) {
       return res.redirect("/user/checkout?error=Vui lòng nhập họ tên, số điện thoại Việt Nam hợp lệ và địa chỉ giao hàng")
     }
-    if (!["cod", "prepaid"].includes(paymentTiming)) {
+    if (!["cod", "prepaid", "wallet"].includes(paymentTiming)) {
       return res.redirect("/user/checkout?error=Phương thức thanh toán không hợp lệ")
+    }
+    if (paymentTiming === "wallet" && !sessionUserId) {
+      return res.redirect("/user/checkout?error=Vui lòng đăng nhập để thanh toán bằng ví")
     }
 
     if (cart.length === 0) {
@@ -717,6 +727,18 @@ router.post("/order", async (req, res) => {
       })
     }
 
+    // Wallet must cover the whole order; partial wallet payment is not supported.
+    if (paymentTiming === "wallet") {
+      const walletBalance = user && user.walletBalance ? user.walletBalance : 0
+      if (walletBalance < finalPrice) {
+        return res.redirect(
+          `/user/checkout?error=${encodeURIComponent(
+            `Số dư ví (${walletBalance.toLocaleString("vi-VN")}đ) không đủ để thanh toán ${finalPrice.toLocaleString("vi-VN")}đ`,
+          )}`,
+        )
+      }
+    }
+
     const order = new Order({
       userId: sessionUserId || null,
       orderCode: `DH${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
@@ -725,7 +747,8 @@ router.post("/order", async (req, res) => {
       items,
       orderType: "takeaway",
       orderFor: "customer",
-      paymentTiming: paymentTiming || "prepaid",
+      // Wallet settles immediately, so it is stored as a prepaid order.
+      paymentTiming: paymentTiming === "cod" ? "cod" : "prepaid",
       totalPrice,
       discount: totalDiscount,
       couponCode: couponCode || null,
@@ -764,6 +787,54 @@ router.post("/order", async (req, res) => {
       } catch (invErr) {
         console.error("[restaurant] Inventory deduction error:", invErr)
       }
+    }
+
+    // Settle wallet payments right away so the order is already paid.
+    if (paymentTiming === "wallet") {
+      const debited = await walletManager.debit(sessionUserId, finalPrice, {
+        type: "order_payment",
+        orderId: order._id,
+        description: `Thanh toán đơn hàng ${order.orderCode} bằng ví`,
+      })
+
+      if (!debited) {
+        // Balance changed between the check and the debit: roll the order back.
+        for (const item of items) {
+          try {
+            if (item.itemType === "dish" && item.dishId) {
+              await inventoryManager.incrementQuantity(item.dishId, order.branchId || null, item.quantity)
+            } else if (item.itemType === "product" && item.productId) {
+              await inventoryManager.incrementProductQuantity(item.productId, order.branchId || null, item.quantity)
+            }
+          } catch (rollbackErr) {
+            console.error("[restaurant] Inventory rollback error:", rollbackErr)
+          }
+        }
+        await Order.deleteOne({ _id: order._id })
+        return res.redirect("/user/checkout?error=Số dư ví không đủ để thanh toán đơn hàng này")
+      }
+
+      const paidAt = new Date()
+      await Payment.create({
+        orderId: order._id,
+        userId: sessionUserId,
+        amount: totalPrice,
+        discount: totalDiscount,
+        finalAmount: finalPrice,
+        paymentMethod: "wallet",
+        status: "completed",
+        revenueType: "delivery",
+        transactionId: `WLT${Date.now()}${order._id.toString().slice(-6)}`,
+        paidAt,
+      })
+
+      order.paymentStatus = "paid"
+      order.paymentMethod = "wallet"
+      order.collectionStatus = "collected"
+      order.walletAmountUsed = finalPrice
+      order.paidAt = paidAt
+      if (order.status === "pending_approval") order.status = "approved"
+      await order.save()
     }
 
     // Account customers receive a personal notification; guest customers use the order code.
@@ -889,6 +960,9 @@ router.post("/order", async (req, res) => {
 
     req.session.cart = []
 
+    if (paymentTiming === "wallet") {
+      return res.redirect("/user/orders?success=Đã thanh toán đơn hàng bằng ví thành công")
+    }
     if (paymentTiming === "cod") {
       return res.redirect(sessionUserId
         ? "/user/profile?success=Đặt hàng thành công! Thanh toán khi nhận hàng"
@@ -1284,11 +1358,188 @@ router.get("/orders", checkAuth, async (req, res) => {
       title: "Don Hang Cua Toi",
       orders,
       message: req.session.message,
+      nonCancellableStatuses: NON_CANCELLABLE,
     })
     delete req.session.message
   } catch (error) {
     console.error("[restaurant] User orders error:", error)
     res.status(500).render("error", { error: error.message, layout: false })
+  }
+})
+
+// Customer cancels their own order; money goes back to the wallet automatically.
+router.post("/orders/:id/cancel", checkAuth, async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, userId: req.session.user.id })
+      .populate("items.dishId")
+      .populate("items.productId")
+
+    if (!order) {
+      req.session.message = { type: "error", text: "Không tìm thấy đơn hàng" }
+      return res.redirect("/user/orders")
+    }
+
+    const actor = await User.findById(req.session.user.id).select("name role")
+    const result = await cancelOrderWithRefund(order, actor, { reason: req.body.reason })
+
+    if (!result.ok) {
+      req.session.message = {
+        type: "error",
+        text: result.reason === "already_cancelled" ? "Đơn hàng đã được hủy trước đó" : result.reason,
+      }
+      return res.redirect("/user/orders")
+    }
+
+    req.session.message = {
+      type: "success",
+      text: result.refundedAmount > 0
+        ? `Đã hủy đơn hàng. ${result.refundedAmount.toLocaleString("vi-VN")}đ đã được hoàn vào ví của bạn.`
+        : "Đã hủy đơn hàng thành công.",
+    }
+    res.redirect(result.refundedAmount > 0 ? "/user/wallet" : "/user/orders")
+  } catch (error) {
+    console.error("[restaurant] Cancel order error:", error)
+    req.session.message = { type: "error", text: "Không thể hủy đơn hàng. Vui lòng thử lại." }
+    res.redirect("/user/orders")
+  }
+})
+
+// ── Wallet ─────────────────────────────────────────────────────────────────────
+router.get("/wallet", checkAuth, async (req, res) => {
+  try {
+    const [user, transactions, refundRequests] = await Promise.all([
+      User.findById(req.session.user.id).select("name walletBalance bankInfo"),
+      WalletTransaction.find({ userId: req.session.user.id })
+        .populate("orderId", "orderCode")
+        .sort({ createdAt: -1 })
+        .limit(50),
+      RefundRequest.find({ userId: req.session.user.id }).sort({ createdAt: -1 }).limit(20),
+    ])
+
+    const pendingWithdrawTotal = refundRequests
+      .filter((r) => r.status === "pending")
+      .reduce((sum, r) => sum + r.amount, 0)
+
+    res.render("user/wallet/index", {
+      title: "Ví Của Tôi",
+      walletUser: user,
+      balance: user && user.walletBalance ? user.walletBalance : 0,
+      transactions,
+      refundRequests,
+      pendingWithdrawTotal,
+      banks: walletManager.getBanks(),
+      message: req.session.message,
+    })
+    delete req.session.message
+  } catch (error) {
+    console.error("[restaurant] Wallet page error:", error)
+    res.status(500).render("error", { error: error.message, layout: false })
+  }
+})
+
+// Customer asks for the wallet money to be transferred back to their bank account.
+router.post("/wallet/refund-request", checkAuth, async (req, res) => {
+  try {
+    const { amount, bankCode, accountNumber, accountHolder, note } = req.body
+    const requested = Math.round(Number(amount) || 0)
+    const cleanAccount = String(accountNumber || "").replace(/\s+/g, "")
+    const holder = String(accountHolder || "").trim()
+
+    if (!requested || requested <= 0) {
+      req.session.message = { type: "error", text: "Số tiền yêu cầu không hợp lệ" }
+      return res.redirect("/user/wallet")
+    }
+    if (!/^\d{6,20}$/.test(cleanAccount) || !holder) {
+      req.session.message = { type: "error", text: "Vui lòng nhập số tài khoản và tên chủ tài khoản hợp lệ" }
+      return res.redirect("/user/wallet")
+    }
+
+    const bank = walletManager.findBank(bankCode)
+    if (!bank) {
+      req.session.message = { type: "error", text: "Vui lòng chọn ngân hàng" }
+      return res.redirect("/user/wallet")
+    }
+
+    const user = await User.findById(req.session.user.id).select("name walletBalance")
+    // Money already locked in other pending requests cannot be requested twice.
+    const pendingTotal = (await RefundRequest.find({ userId: user._id, status: "pending" }))
+      .reduce((sum, r) => sum + r.amount, 0)
+    const available = (user.walletBalance || 0) - pendingTotal
+
+    if (requested > available) {
+      req.session.message = {
+        type: "error",
+        text: `Số tiền khả dụng chỉ còn ${available.toLocaleString("vi-VN")}đ (đã trừ các yêu cầu đang chờ)`,
+      }
+      return res.redirect("/user/wallet")
+    }
+
+    const refundRequest = await RefundRequest.create({
+      userId: user._id,
+      amount: requested,
+      bankName: bank.name,
+      bankCode: bank.code,
+      accountNumber: cleanAccount,
+      accountHolder: holder,
+      note: String(note || "").slice(0, 300),
+      status: "pending",
+    })
+
+    // Save the bank details so the customer does not retype them next time.
+    await User.findByIdAndUpdate(user._id, {
+      bankInfo: { accountNumber: cleanAccount, bankName: bank.name, accountHolder: holder },
+    })
+
+    const admins = await User.find({ role: "admin" }).select("_id")
+    for (const admin of admins) {
+      await Notification.create({
+        type: "refund_request",
+        category: "payment",
+        priority: "high",
+        userId: admin._id,
+        targetUserId: user._id,
+        amount: requested,
+        message: `${user.name} yêu cầu hoàn ${requested.toLocaleString("vi-VN")}đ về tài khoản ${bank.name}`,
+        details: `STK ${cleanAccount} - ${holder}`,
+        userNote: refundRequest.note,
+        status: "pending",
+      })
+    }
+
+    req.session.message = {
+      type: "success",
+      text: "Đã gửi yêu cầu hoàn tiền. Quản trị viên sẽ xử lý và chuyển khoản cho bạn.",
+    }
+    res.redirect("/user/wallet")
+  } catch (error) {
+    console.error("[restaurant] Refund request error:", error)
+    req.session.message = { type: "error", text: "Không thể gửi yêu cầu. Vui lòng thử lại." }
+    res.redirect("/user/wallet")
+  }
+})
+
+// Customer withdraws a request that has not been paid out yet.
+router.post("/wallet/refund-request/:id/cancel", checkAuth, async (req, res) => {
+  try {
+    const request = await RefundRequest.findOne({
+      _id: req.params.id,
+      userId: req.session.user.id,
+      status: "pending",
+    })
+    if (!request) {
+      req.session.message = { type: "error", text: "Không tìm thấy yêu cầu đang chờ xử lý" }
+      return res.redirect("/user/wallet")
+    }
+    request.status = "rejected"
+    request.rejectReason = "Khách hàng tự hủy yêu cầu"
+    request.processedAt = new Date()
+    await request.save()
+
+    req.session.message = { type: "success", text: "Đã hủy yêu cầu hoàn tiền" }
+    res.redirect("/user/wallet")
+  } catch (error) {
+    console.error("[restaurant] Cancel refund request error:", error)
+    res.redirect("/user/wallet")
   }
 })
 
