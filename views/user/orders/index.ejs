@@ -62,7 +62,38 @@
             </div>
             <div class="order-detail-link">
               <a href="/user/track-order/<%= order.orderCode || order._id %>" class="btn btn-small btn-secondary">Xem chi tiết &amp; theo dõi</a>
+              <%
+                var blockedStatuses = (typeof nonCancellableStatuses !== 'undefined' && nonCancellableStatuses)
+                  ? nonCancellableStatuses
+                  : ['cancelled', 'delivered_success', 'served', 'delivered', 'completed'];
+              %>
+              <% if (!blockedStatuses.includes(order.status)) { %>
+                <button type="button" class="btn btn-small btn-cancel-order"
+                        onclick="openCancelDialog('<%= order._id %>', '<%= order.orderCode || order._id.toString().slice(-8).toUpperCase() %>')">
+                  Huy don hang
+                </button>
+              <% } %>
             </div>
+
+            <% if (order.status === 'cancelled') { %>
+              <div class="cancel-summary">
+                <p class="cancel-summary-title">Don hang da huy</p>
+                <% if (order.cancelReason) { %>
+                  <p><strong>Ly do:</strong> <%= order.cancelReason %></p>
+                <% } %>
+                <% if (order.cancelledAt) { %>
+                  <p><strong>Thoi diem huy:</strong> <%= new Date(order.cancelledAt).toLocaleString('vi-VN') %></p>
+                <% } %>
+                <% if (order.refundedAmount > 0) { %>
+                  <p class="cancel-refund">
+                    Da hoan <strong><%= order.refundedAmount.toLocaleString('vi-VN') %>d</strong> vao vi cua ban.
+                    <a href="/user/wallet">Xem vi</a>
+                  </p>
+                <% } else { %>
+                  <p class="cancel-note">Don chua thanh toan nen khong phat sinh hoan tien.</p>
+                <% } %>
+              </div>
+            <% } %>
 
             <div class="order-details">
               <div class="order-info">
@@ -181,6 +212,26 @@
   </div>
 </div>
 
+<!-- Cancel order confirmation dialog -->
+<div class="cancel-overlay" id="cancelOverlay" role="dialog" aria-modal="true" aria-labelledby="cancelDialogTitle">
+  <div class="cancel-dialog">
+    <h3 id="cancelDialogTitle">Huy don hang</h3>
+    <p class="cancel-dialog-sub">
+      Ban chac chan muon huy don <strong id="cancelOrderCode"></strong>?
+      Neu don da thanh toan, so tien se duoc hoan vao vi cua ban.
+    </p>
+    <form method="POST" id="cancelForm">
+      <label for="cancelReason">Ly do huy (khong bat buoc)</label>
+      <textarea name="reason" id="cancelReason" rows="3" maxlength="500"
+                placeholder="Vi du: Toi dat sai mon, muon doi thoi gian giao..."></textarea>
+      <div class="cancel-dialog-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeCancelDialog()">Quay lai</button>
+        <button type="submit" class="btn btn-danger">Xac nhan huy don</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <style>
 .orders-page {
   padding: 40px 0;
@@ -193,6 +244,30 @@
   color: #8b4513;
   margin-bottom: 20px;
 }
+
+/* Cancel order */
+.order-detail-link { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn-cancel-order { background: white; color: #b3261e; border: 1.5px solid #e5a5a0; cursor: pointer; font-weight: 600; }
+.btn-cancel-order:hover { background: #fdf2f1; border-color: #b3261e; }
+
+.cancel-summary { margin: 0 20px 16px; padding: 14px 16px; background: #fdf2f1; border: 1px solid #f0d4d1; border-left: 3px solid #b3261e; border-radius: 8px; }
+.cancel-summary-title { margin: 0 0 8px; font-weight: 700; color: #b3261e; font-size: 0.9rem; }
+.cancel-summary p { margin: 4px 0; font-size: 0.85rem; color: #5c5148; }
+.cancel-refund { color: #1e6b3a !important; }
+.cancel-refund a { color: #1e6b3a; font-weight: 600; text-decoration: underline; }
+.cancel-note { color: #8a7f75 !important; font-style: italic; }
+
+.cancel-overlay { display: none; position: fixed; inset: 0; background: rgba(35, 28, 22, 0.6); z-index: 1200; align-items: center; justify-content: center; padding: 20px; }
+.cancel-overlay.is-open { display: flex; }
+.cancel-dialog { background: white; border-radius: 14px; padding: 26px; max-width: 460px; width: 100%; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28); }
+.cancel-dialog h3 { margin: 0 0 10px; color: #b3261e; font-size: 1.25rem; }
+.cancel-dialog-sub { margin: 0 0 18px; font-size: 0.88rem; color: #5c5148; line-height: 1.6; }
+.cancel-dialog label { display: block; font-size: 0.8rem; font-weight: 600; color: #6d5636; margin-bottom: 6px; }
+.cancel-dialog textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #d6ccc2; border-radius: 8px; font-family: inherit; font-size: 0.88rem; resize: vertical; box-sizing: border-box; }
+.cancel-dialog textarea:focus { outline: none; border-color: #8b6f47; }
+.cancel-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+.cancel-dialog-actions .btn-danger { background: #b3261e; color: white; border: none; cursor: pointer; font-weight: 600; }
+.cancel-dialog-actions .btn-danger:hover { background: #911d17; }
 
 /* Filter tabs */
 .order-filters { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
@@ -625,6 +700,29 @@
   }
 }
 </style>
+
+<script>
+// Cancel order dialog
+function openCancelDialog(orderId, orderCode) {
+  var overlay = document.getElementById('cancelOverlay');
+  document.getElementById('cancelForm').action = '/user/orders/' + orderId + '/cancel';
+  document.getElementById('cancelOrderCode').textContent = orderCode;
+  document.getElementById('cancelReason').value = '';
+  overlay.classList.add('is-open');
+}
+
+function closeCancelDialog() {
+  document.getElementById('cancelOverlay').classList.remove('is-open');
+}
+
+document.getElementById('cancelOverlay').addEventListener('click', function (e) {
+  if (e.target === this) closeCancelDialog();
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeCancelDialog();
+});
+</script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {

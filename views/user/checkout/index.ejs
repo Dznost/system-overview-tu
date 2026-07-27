@@ -119,6 +119,24 @@
                             </div>
                         </label>
                         <% } %>
+
+                        <%
+                          var availableWallet = (typeof walletBalance !== 'undefined' && walletBalance) ? walletBalance : 0;
+                          var walletEnough = availableWallet >= finalTotal;
+                        %>
+                        <% if (availableWallet > 0) { %>
+                        <label class="radio-card small <%= walletEnough ? '' : 'radio-card-disabled' %>" id="walletOption">
+                            <input type="radio" name="paymentTiming" value="wallet" <%= walletEnough ? '' : 'disabled' %>>
+                            <div class="radio-card-content">
+                                <div class="radio-card-icon">&#x1F45B;</div>
+                                <div class="radio-card-label">Vi Cua Toi</div>
+                                <div class="radio-card-desc">
+                                    So du: <strong><%= availableWallet.toLocaleString('vi-VN') %>d</strong>
+                                    <% if (!walletEnough) { %><br><span class="wallet-short">Khong du de thanh toan don nay</span><% } %>
+                                </div>
+                            </div>
+                        </label>
+                        <% } %>
                     </div>
                 </div>
 
@@ -442,6 +460,16 @@
 .radio-card.small .radio-card-icon {
     font-size: 1.6rem;
     margin-bottom: 6px;
+}
+
+.radio-card-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.wallet-short {
+    color: #b3261e;
+    font-weight: 600;
 }
 
 .radio-card-label {

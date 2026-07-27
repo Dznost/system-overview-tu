@@ -112,6 +112,8 @@ router.post("/:id/complete", checkAdmin, async (req, res) => {
     request.status = "completed"
     request.processedBy = req.session.user.id
     request.processedAt = new Date()
+    request.adminNote = String(req.body.adminNote || "").trim().slice(0, 500)
+    request.transferReference = String(req.body.transferReference || "").trim().slice(0, 100)
     await request.save()
 
     await Notification.create({
