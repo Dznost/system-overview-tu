@@ -6,13 +6,18 @@ const Order = require("../models/Order");
 // Get revenue statistics — split into delivery, reception, and total
 exports.getRevenue = async (req, res) => {
   try {
-    const { year, month } = req.query;
+    const { year, month, startDate: reqStartDate, endDate: reqEndDate, branchId, paymentMethod, revenueType } = req.query;
+    let startDate, endDate, viewType;
     const currentYear = year ? parseInt(year) : new Date().getFullYear();
     const currentMonth = month ? parseInt(month) : null;
 
-    let startDate, endDate, viewType;
-
-    if (currentMonth) {
+    // Support both date range and year/month filters
+    if (reqStartDate && reqEndDate) {
+      viewType = "daterange";
+      startDate = new Date(reqStartDate);
+      endDate = new Date(reqEndDate);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (currentMonth) {
       viewType = "monthly";
       startDate = new Date(currentYear, currentMonth - 1, 1);
       endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59);
@@ -22,11 +27,25 @@ exports.getRevenue = async (req, res) => {
       endDate = new Date(currentYear, 11, 31, 23, 59, 59);
     }
 
-    // Fetch all completed payments in date range
-    const payments = await Payment.find({
+    // Build filter object with support for additional filters
+    const paymentFilter = {
       status: "completed",
       createdAt: { $gte: startDate, $lte: endDate },
-    })
+    };
+
+    // Apply additional filters if provided
+    if (paymentMethod && paymentMethod !== "all") {
+      paymentFilter.paymentMethod = paymentMethod;
+    }
+    if (revenueType && revenueType !== "all") {
+      paymentFilter.revenueType = revenueType;
+    }
+    if (branchId && branchId !== "all") {
+      paymentFilter.branchId = branchId;
+    }
+
+    // Fetch all completed payments in date range
+    const payments = await Payment.find(paymentFilter)
       .populate("userId", "name email")
       .populate("collectedBy", "name email")
       .populate("branchId", "name address")
@@ -41,23 +60,48 @@ exports.getRevenue = async (req, res) => {
     // Per-shipper breakdown
     const shipperMap = {};
     deliveryPayments.forEach((p) => {
-      const id = p.collectedBy ? p.collectedBy._id.toString() : "unknown";
-      const name = p.collectedBy ? p.collectedBy.name : "Khong xac dinh";
-      const email = p.collectedBy ? p.collectedBy.email : "";
-      if (!shipperMap[id]) shipperMap[id] = { name, email, total: 0, count: 0 };
-      shipperMap[id].total += p.finalAmount || p.amount || 0;
-      shipperMap[id].count += 1;
+      // Handle null collectedBy gracefully
+      if (!p.collectedBy) {
+        const id = "unknown_shipper";
+        if (!shipperMap[id]) {
+          shipperMap[id] = { 
+            name: "Không xác định", 
+            email: "N/A",
+            status: "missing",
+            total: 0, 
+            count: 0 
+          };
+        }
+        shipperMap[id].total += p.finalAmount || p.amount || 0;
+        shipperMap[id].count += 1;
+      } else {
+        const id = p.collectedBy._id.toString();
+        const name = p.collectedBy.name || "Không có tên";
+        const email = p.collectedBy.email || "N/A";
+        if (!shipperMap[id]) shipperMap[id] = { name, email, status: "active", total: 0, count: 0 };
+        shipperMap[id].total += p.finalAmount || p.amount || 0;
+        shipperMap[id].count += 1;
+      }
     });
     const shipperBreakdown = Object.values(shipperMap).sort((a, b) => b.total - a.total);
 
     // Per-branch breakdown for delivery
     const deliveryBranchMap = {};
     deliveryPayments.forEach((p) => {
-      const id = p.branchId ? p.branchId._id.toString() : "unknown";
-      const name = p.branchId ? p.branchId.name : "Khong xac dinh";
-      if (!deliveryBranchMap[id]) deliveryBranchMap[id] = { name, total: 0, count: 0 };
-      deliveryBranchMap[id].total += p.finalAmount || p.amount || 0;
-      deliveryBranchMap[id].count += 1;
+      if (!p.branchId) {
+        const id = "unknown_branch";
+        if (!deliveryBranchMap[id]) {
+          deliveryBranchMap[id] = { name: "Chi nhánh không xác định", status: "missing", total: 0, count: 0 };
+        }
+        deliveryBranchMap[id].total += p.finalAmount || p.amount || 0;
+        deliveryBranchMap[id].count += 1;
+      } else {
+        const id = p.branchId._id.toString();
+        const name = p.branchId.name || "Chi nhánh không có tên";
+        if (!deliveryBranchMap[id]) deliveryBranchMap[id] = { name, status: "active", total: 0, count: 0 };
+        deliveryBranchMap[id].total += p.finalAmount || p.amount || 0;
+        deliveryBranchMap[id].count += 1;
+      }
     });
     const deliveryBranchBreakdown = Object.values(deliveryBranchMap).sort((a, b) => b.total - a.total);
 
@@ -68,12 +112,21 @@ exports.getRevenue = async (req, res) => {
     // Per-branch breakdown
     const branchMap = {};
     receptionPayments.forEach((p) => {
-      const id = p.branchId ? p.branchId._id.toString() : "unknown";
-      const name = p.branchId ? p.branchId.name : "Chi nhanh khong xac dinh";
-      const address = p.branchId ? p.branchId.address : "";
-      if (!branchMap[id]) branchMap[id] = { name, address, total: 0, count: 0 };
-      branchMap[id].total += p.finalAmount || p.amount || 0;
-      branchMap[id].count += 1;
+      if (!p.branchId) {
+        const id = "unknown_branch_reception";
+        if (!branchMap[id]) {
+          branchMap[id] = { name: "Chi nhánh không xác định", address: "N/A", status: "missing", total: 0, count: 0 };
+        }
+        branchMap[id].total += p.finalAmount || p.amount || 0;
+        branchMap[id].count += 1;
+      } else {
+        const id = p.branchId._id.toString();
+        const name = p.branchId.name || "Chi nhánh không có tên";
+        const address = p.branchId.address || "";
+        if (!branchMap[id]) branchMap[id] = { name, address, status: "active", total: 0, count: 0 };
+        branchMap[id].total += p.finalAmount || p.amount || 0;
+        branchMap[id].count += 1;
+      }
     });
     const branchBreakdown = Object.values(branchMap).sort((a, b) => b.total - a.total);
 
@@ -84,12 +137,27 @@ exports.getRevenue = async (req, res) => {
     // Per-staff breakdown for guest orders
     const guestStaffMap = {};
     guestOrderPayments.forEach((p) => {
-      const id = p.createdByStaff ? p.createdByStaff._id.toString() : "unknown";
-      const name = p.createdByStaff ? p.createdByStaff.name : "Khong xac dinh";
-      const email = p.createdByStaff ? p.createdByStaff.email : "";
-      if (!guestStaffMap[id]) guestStaffMap[id] = { name, email, total: 0, count: 0 };
-      guestStaffMap[id].total += p.finalAmount || p.amount || 0;
-      guestStaffMap[id].count += 1;
+      if (!p.createdByStaff) {
+        const id = "unknown_staff";
+        if (!guestStaffMap[id]) {
+          guestStaffMap[id] = { 
+            name: "Nhân viên không xác định", 
+            email: "N/A",
+            status: "missing",
+            total: 0, 
+            count: 0 
+          };
+        }
+        guestStaffMap[id].total += p.finalAmount || p.amount || 0;
+        guestStaffMap[id].count += 1;
+      } else {
+        const id = p.createdByStaff._id.toString();
+        const name = p.createdByStaff.name || "Nhân viên không có tên";
+        const email = p.createdByStaff.email || "N/A";
+        if (!guestStaffMap[id]) guestStaffMap[id] = { name, email, status: "active", total: 0, count: 0 };
+        guestStaffMap[id].total += p.finalAmount || p.amount || 0;
+        guestStaffMap[id].count += 1;
+      }
     });
     const guestOrderStaffBreakdown = Object.values(guestStaffMap).sort((a, b) => b.total - a.total);
 
@@ -106,13 +174,29 @@ exports.getRevenue = async (req, res) => {
     // ── Per-receptionist breakdown ────────────────────────────────────────────
     const receptionistMap = {};
     receptionPayments.forEach((p) => {
-      const id = p.collectedBy ? p.collectedBy._id.toString() : "unknown";
-      const name = p.collectedBy ? p.collectedBy.name : "Khong xac dinh";
-      const email = p.collectedBy ? p.collectedBy.email : "";
-      const branchName = p.branchId ? p.branchId.name : "Khong xac dinh";
-      if (!receptionistMap[id]) receptionistMap[id] = { name, email, branchName, total: 0, count: 0 };
-      receptionistMap[id].total += p.finalAmount || p.amount || 0;
-      receptionistMap[id].count += 1;
+      if (!p.collectedBy) {
+        const id = "unknown_receptionist";
+        if (!receptionistMap[id]) {
+          receptionistMap[id] = { 
+            name: "Lễ tân không xác định", 
+            email: "N/A",
+            branchName: p.branchId ? p.branchId.name : "Chi nhánh không xác định",
+            status: "missing",
+            total: 0, 
+            count: 0 
+          };
+        }
+        receptionistMap[id].total += p.finalAmount || p.amount || 0;
+        receptionistMap[id].count += 1;
+      } else {
+        const id = p.collectedBy._id.toString();
+        const name = p.collectedBy.name || "Lễ tân không có tên";
+        const email = p.collectedBy.email || "N/A";
+        const branchName = p.branchId ? p.branchId.name : "Chi nhánh không xác định";
+        if (!receptionistMap[id]) receptionistMap[id] = { name, email, branchName, status: "active", total: 0, count: 0 };
+        receptionistMap[id].total += p.finalAmount || p.amount || 0;
+        receptionistMap[id].count += 1;
+      }
     });
     const receptionistBreakdown = Object.values(receptionistMap).sort((a, b) => b.total - a.total);
 
@@ -132,7 +216,7 @@ exports.getRevenue = async (req, res) => {
     const totalTransactions = payments.length;
     const avgTransactionValue = totalTransactions > 0 ? Math.round(systemTotal / totalTransactions) : 0;
 
-    // ── Payment method breakdown ────────────────────────────────────────────
+    // ── Payment method breakdown ────────────────────��───────────────────────
     const paymentMethods = { bank: 0, cash: 0, transfer: 0, other: 0 };
     payments.forEach((p) => {
       const m = p.paymentMethod || "cash";
@@ -172,6 +256,9 @@ exports.getRevenue = async (req, res) => {
       .populate("branchId", "name address")
       .sort({ createdAt: -1 });
 
+    // ── Get all branches for filter dropdown ────────────────────────────────
+    const allBranches = await Branch.find().select("_id name").lean();
+
     const guestOrderCount = guestOrders.length;
     const guestOrderPaidCount = guestOrders.filter((o) => o.paymentStatus === "paid").length;
     const guestOrderDeposit = guestOrders.reduce((sum, o) => sum + (o.depositAmount || 0), 0);
@@ -184,6 +271,11 @@ exports.getRevenue = async (req, res) => {
       currentYear,
       currentMonth,
       viewType,
+      startDate: reqStartDate,
+      endDate: reqEndDate,
+      selectedBranchId: branchId,
+      selectedPaymentMethod: paymentMethod,
+      selectedRevenueType: revenueType,
       // payment method (Rubric 3.2)
       codTotal,
       codPayments,
@@ -228,6 +320,7 @@ exports.getRevenue = async (req, res) => {
       monthlyGuestOrder,
       monthlyWalkin,
       payments, // full list for transaction log
+      allBranches, // for filter dropdown
     });
   } catch (error) {
     console.error("[restaurant] Revenue error:", error);

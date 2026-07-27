@@ -7,6 +7,7 @@ const Notification = require("../models/Notification");
 exports.getContacts = async (req, res) => {
   try {
     const typeFilter = req.query.type || "all";
+    const viewArchived = req.query.archived === "true";
 
     // If viewing order reviews, fetch from Order model instead
     if (typeFilter === "reviews") {
@@ -18,25 +19,33 @@ exports.getContacts = async (req, res) => {
         .sort({ ratedAt: -1 });
 
       return res.render("admin/contacts/index", {
-        title: "Quan Ly Phan Hoi",
+        title: "Quản Lý Phản Hồi",
         contacts: [],
         orderReviews,
         typeFilter,
+        viewArchived,
         success: req.query.success,
       });
     }
 
-    let query = {};
+    let query = { isArchived: viewArchived };
+    
     if (typeFilter === "feedback") query.type = "feedback";
     else if (typeFilter === "shipper") query.type = "shipper_application";
     else if (typeFilter === "staff") query.type = "staff_application";
+    else if (typeFilter === "inquiry") query.type = "inquiry";
 
-    const contacts = await Contact.find(query).sort({ createdAt: -1 });
+    const contacts = await Contact.find(query)
+      .populate("userId", "name email")
+      .populate("repliedBy", "name email")
+      .sort({ repliedAt: -1, createdAt: -1 });
+      
     res.render("admin/contacts/index", { 
-      title: "Quan Ly Phan Hoi", 
+      title: "Quản Lý Phản Hồi", 
       contacts,
       orderReviews: [],
       typeFilter,
+      viewArchived,
       success: req.query.success 
     });
   } catch (error) {
@@ -69,23 +78,57 @@ exports.getContactDetail = async (req, res) => {
 // Reply to contact
 exports.replyContact = async (req, res) => {
   try {
-    const { reply } = req.body;
-    await Contact.findByIdAndUpdate(req.params.id, { 
-      reply, 
-      status: "replied" 
-    });
-    res.redirect(`/admin/contacts/${req.params.id}?success=Gửi phản hồi thành công`);
+    const { replyMessage } = req.body;
+    if (!replyMessage || !replyMessage.trim()) {
+      return res.redirect(`/admin/contacts/${req.params.id}?error=Vui+lòng+nhập+nội+dung+phản+hồi`);
+    }
+    
+    const contact = await Contact.findByIdAndUpdate(
+      req.params.id, 
+      { 
+        replyMessage: replyMessage.trim(),
+        repliedBy: req.session.user._id,
+        repliedAt: new Date(),
+        status: "replied",
+        isArchived: false
+      },
+      { new: true }
+    );
+    
+    res.redirect(`/admin/contacts/${req.params.id}?success=Gửi+phản+hồi+thành+công`);
   } catch (error) {
     console.error(error);
     res.redirect("/admin/contacts");
   }
 };
 
-// Delete contact
+// Archive contact (soft delete)
+exports.archiveContact = async (req, res) => {
+  try {
+    await Contact.findByIdAndUpdate(req.params.id, { isArchived: true });
+    res.redirect("/admin/contacts?success=Lưu+trữ+liên+hệ+thành+công");
+  } catch (error) {
+    console.error(error);
+    res.redirect("/admin/contacts");
+  }
+};
+
+// Restore archived contact
+exports.restoreContact = async (req, res) => {
+  try {
+    await Contact.findByIdAndUpdate(req.params.id, { isArchived: false });
+    res.redirect("/admin/contacts?success=Khôi+phục+liên+hệ+thành+công");
+  } catch (error) {
+    console.error(error);
+    res.redirect("/admin/contacts");
+  }
+};
+
+// Delete contact (permanent)
 exports.deleteContact = async (req, res) => {
   try {
     await Contact.findByIdAndDelete(req.params.id);
-    res.redirect("/admin/contacts?success=Xoa thanh cong");
+    res.redirect("/admin/contacts?success=Xoá+thành+công");
   } catch (error) {
     console.error(error);
     res.redirect("/admin/contacts");

@@ -13,13 +13,16 @@ const contactSchema = new mongoose.Schema(
     phone: {
       type: String,
     },
+    subject: {
+      type: String,
+    },
     message: {
       type: String,
       required: true,
     },
     type: {
       type: String,
-      enum: ["feedback", "shipper_application", "staff_application"],
+      enum: ["feedback", "shipper_application", "staff_application", "inquiry"],
       default: "feedback",
     },
     userId: {
@@ -32,12 +35,29 @@ const contactSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["new", "read", "replied", "approved", "rejected"],
-      default: "new",
+      enum: ["pending", "read", "replied", "approved", "rejected", "archived"],
+      default: "pending",
     },
-    reply: {
+    replyMessage: {
       type: String,
       default: null,
+    },
+    repliedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    repliedAt: {
+      type: Date,
+      default: null,
+    },
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high"],
+      default: "medium",
     },
   },
   { timestamps: true },
