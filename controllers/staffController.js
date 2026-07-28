@@ -53,7 +53,7 @@ exports.getOrders = async (req, res) => {
     const staffId = req.session.user.id
     const statusFilter = req.query.status || "all"
 
-    let query = { staffId }
+    let query = { staffId, status: { $ne: "cancelled" } }
     if (statusFilter === "processing") query.status = { $in: ["confirmed", "preparing", "ready", "processing"] }
     else if (statusFilter === "completed") query.status = { $in: ["served", "completed"] }
 

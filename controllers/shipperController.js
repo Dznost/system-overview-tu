@@ -39,7 +39,7 @@ exports.getOrders = async (req, res) => {
     const shipperId = req.session.user.id
     const statusFilter = req.query.status || "all"
 
-    let query = { shipperId }
+    let query = { shipperId, status: { $ne: "cancelled" } }
     if (statusFilter === "processing") query.status = { $in: ["assigned_shipper", "shipped", "processing", "shipping"] }
     else if (statusFilter === "completed") query.status = { $in: ["delivered_success", "completed"] }
 

@@ -93,7 +93,7 @@ exports.getOrders = async (req, res) => {
     const statusFilter = req.query.status || "all"
     const searchQuery = req.query.q || ""
 
-    let query = { branchId, orderType: "dine-in" }
+    let query = { branchId, orderType: "dine-in", status: { $ne: "cancelled" } }
     if (statusFilter === "processing") query.status = "processing"
     else if (statusFilter === "completed") query.status = "completed"
 
