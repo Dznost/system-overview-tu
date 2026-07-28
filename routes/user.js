@@ -10,6 +10,7 @@ const Event = require("../models/Event")
 const Notification = require("../models/Notification")
 const Product = require("../models/Product")
 const Review = require("../models/Review")
+const messageController = require("../controllers/messageController")
 const {
   normalizePhone,
   orderCode,
@@ -1451,5 +1452,10 @@ function generateQRCode(amount, orderRef, method) {
 
   return null
 }
+
+// ========== USER MESSAGING (Q&A) ==========
+router.get("/messages", checkAuth, messageController.getUserMessages)
+router.post("/messages/send", checkAuth, messageController.sendUserMessage)
+router.get("/messages/:conversationId", checkAuth, messageController.getUserConversation)
 
 module.exports = router

@@ -69,6 +69,7 @@ app.use("/admin/contacts", require("./routes/admin/contacts"))
 app.use("/admin/revenue", require("./routes/admin/revenue"))
 app.use("/admin/coupons", require("./routes/admin/coupons"))
 app.use("/admin/reviews", require("./routes/admin/reviews"))
+app.use("/admin/messages-qa", require("./routes/admin/messages-qa"))
 app.use("/admin/qa", require("./routes/admin/qa"))
 app.use("/admin/warranties", require("./routes/admin/warranties"))
 

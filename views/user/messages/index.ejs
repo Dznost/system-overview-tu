@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= title %></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/responsive-pages.css">
+    <style>
+        .messages-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .messages-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 16px;
+        }
+
+        .messages-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .compose-btn {
+            background: linear-gradient(135deg, #8B6F47 0%, #6b5438 100%);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .compose-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 111, 71, 0.3);
+        }
+
+        .messages-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .message-item:hover {
+            border-color: #8B6F47;
+            box-shadow: 0 2px 8px rgba(139, 111, 71, 0.15);
+            background: #fafaf8;
+        }
+
+        .message-item-content {
+            flex: 1;
+        }
+
+        .message-item-subject {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+            font-size: 1rem;
+        }
+
+        .message-item-preview {
+            color: #666;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 400px;
+        }
+
+        .message-item-meta {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #999;
+        }
+
+        .message-item-time {
+            white-space: nowrap;
+        }
+
+        .message-status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .status-replied {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .status-resolved {
+            background: #cffafe;
+            color: #0891b2;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 24px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 1.1rem;
+            margin-bottom: 24px;
+        }
+
+        .compose-form {
+            background: #f9f7f3;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .form-input,
+        .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #8B6F47;
+            box-shadow: 0 0 0 3px rgba(139, 111, 71, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #8B6F47 0%, #6b5438 100%);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 111, 71, 0.3);
+        }
+
+        .cancel-btn {
+            background: #e5e7eb;
+            color: #374151;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .cancel-btn:hover {
+            background: #d1d5db;
+        }
+
+        .notification-bubble {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .messages-header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .message-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .message-item-preview {
+                max-width: 100%;
+            }
+
+            .message-item-meta {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+    <%- include("../../layout") %>
+
+    <div class="container" style="padding-top: 80px; padding-bottom: 40px;">
+        <div class="messages-container">
+            <div class="messages-header">
+                <h1 class="messages-title">Hỏi Đáp với Admin</h1>
+                <button class="compose-btn" onclick="toggleComposeForm()">+ Gửi Tin Nhắn</button>
+            </div>
+
+            <% if (success) { %>
+                <div class="notification-bubble"><%= success %></div>
+            <% } %>
+
+            <% if (error) { %>
+                <div style="background: #fee2e2; color: #dc2626; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <!-- Compose Form (Hidden by default) -->
+            <div class="compose-form" id="composeForm" style="display: none;">
+                <form method="POST" action="/user/messages/send">
+                    <div class="form-group">
+                        <label class="form-label">Tiêu đề:</label>
+                        <input type="text" name="subject" placeholder="Nhập tiêu đề tin nhắn" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nội dung:</label>
+                        <textarea name="content" placeholder="Nhập nội dung tin nhắn của bạn..." class="form-textarea" required></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="submit-btn">Gửi</button>
+                        <button type="button" class="cancel-btn" onclick="toggleComposeForm()">Hủy</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Messages List -->
+            <% if (conversations && conversations.length > 0) { %>
+                <div class="messages-list">
+                    <% conversations.forEach(conv => { %>
+                        <a href="/user/messages/<%= conv.conversationId %>" style="text-decoration: none; color: inherit;">
+                            <div class="message-item">
+                                <div class="message-item-content">
+                                    <div class="message-item-subject"><%= conv.subject || "Tin nhắn mới" %></div>
+                                    <div class="message-item-preview"><%= conv.lastMessage %></div>
+                                </div>
+                                <div class="message-item-meta">
+                                    <div class="message-item-time">
+                                        <%= new Date(conv.lastMessageTime).toLocaleDateString('vi-VN') %>
+                                    </div>
+                                    <span class="message-status-badge <%= conv.isResolved ? 'status-resolved' : 'status-pending' %>">
+                                        <%= conv.isResolved ? 'Hoàn thành' : 'Chờ trả lời' %>
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <div class="empty-state">
+                    <div class="empty-state-icon">💬</div>
+                    <div class="empty-state-text">Chưa có tin nhắn nào</div>
+                    <button class="compose-btn" onclick="toggleComposeForm()">Gửi tin nhắn đầu tiên</button>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <script>
+        function toggleComposeForm() {
+            const form = document.getElementById('composeForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Auto-hide notification after 3 seconds
+        const notification = document.querySelector('.notification-bubble');
+        if (notification) {
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

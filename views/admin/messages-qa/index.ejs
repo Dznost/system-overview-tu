@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= title %></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/responsive-pages.css">
+    <style>
+        .admin-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 16px;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .filter-tab {
+            padding: 10px 16px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6b7280;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+        }
+
+        .filter-tab:hover {
+            color: #1f2937;
+        }
+
+        .filter-tab.active {
+            color: #8B6F47;
+            border-bottom-color: #8B6F47;
+        }
+
+        .conversations-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .conversation-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .conversation-item:hover {
+            border-color: #8B6F47;
+            box-shadow: 0 2px 8px rgba(139, 111, 71, 0.15);
+            background: #fafaf8;
+        }
+
+        .conversation-item-content {
+            flex: 1;
+        }
+
+        .conversation-user {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+            font-size: 1rem;
+        }
+
+        .conversation-user-email {
+            color: #999;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+
+        .conversation-preview {
+            color: #666;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 500px;
+        }
+
+        .conversation-meta {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #999;
+        }
+
+        .conversation-time {
+            white-space: nowrap;
+        }
+
+        .unread-badge {
+            background: #ff6b6b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .status-replied {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .status-resolved {
+            background: #cffafe;
+            color: #0891b2;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 24px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .conversation-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .conversation-preview {
+                max-width: 100%;
+            }
+
+            .conversation-meta {
+                width: 100%;
+                justify-content: space-between;
+                margin-top: 12px;
+            }
+
+            .filter-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .filter-tab {
+                padding: 8px 12px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <%- include("../../admin/layout") %>
+
+    <div class="container" style="padding-top: 20px; padding-bottom: 40px;">
+        <div class="admin-card" style="margin-bottom: 24px;">
+            <div class="page-header">
+                <h1 class="page-title">Quản Lý Hỏi Đáp (Q&A)</h1>
+            </div>
+
+            <% if (success) { %>
+                <div style="background: #d1fae5; color: #059669; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+                    <%= success %>
+                </div>
+            <% } %>
+
+            <% if (error) { %>
+                <div style="background: #fee2e2; color: #dc2626; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <!-- Filter Tabs -->
+            <div class="filter-tabs">
+                <button class="filter-tab <%= filterType === 'all' ? 'active' : '' %>" onclick="window.location='/admin/messages-qa?filter=all'">
+                    Tất cả
+                </button>
+                <button class="filter-tab <%= filterType === 'pending' ? 'active' : '' %>" onclick="window.location='/admin/messages-qa?filter=pending'">
+                    Chờ trả lời
+                </button>
+                <button class="filter-tab <%= filterType === 'unread' ? 'active' : '' %>" onclick="window.location='/admin/messages-qa?filter=unread'">
+                    Chưa đọc
+                </button>
+                <button class="filter-tab <%= filterType === 'resolved' ? 'active' : '' %>" onclick="window.location='/admin/messages-qa?filter=resolved'">
+                    Hoàn thành
+                </button>
+            </div>
+
+            <!-- Conversations List -->
+            <% if (conversations && conversations.length > 0) { %>
+                <div class="conversations-list">
+                    <% conversations.forEach(conv => { %>
+                        <a href="/admin/messages-qa/<%= conv.conversationId %>" style="text-decoration: none; color: inherit;">
+                            <div class="conversation-item">
+                                <div class="conversation-item-content">
+                                    <div class="conversation-user">
+                                        <%= conv.userName %>
+                                        <% if (conv.unreadCount > 0) { %>
+                                            <span class="unread-badge" style="margin-left: 8px;"><%= conv.unreadCount %></span>
+                                        <% } %>
+                                    </div>
+                                    <div class="conversation-user-email"><%= conv.userEmail %></div>
+                                    <div class="conversation-preview"><%= conv.lastMessage || "Không có tin nhắn" %></div>
+                                </div>
+                                <div class="conversation-meta">
+                                    <div class="conversation-time">
+                                        <%= new Date(conv.lastMessageTime).toLocaleDateString('vi-VN') %>
+                                    </div>
+                                    <span class="status-badge <%= conv.isResolved ? 'status-resolved' : 'status-pending' %>">
+                                        <%= conv.isResolved ? 'Hoàn thành' : 'Chờ trả lời' %>
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <div class="empty-state-text">Không có cuộc hội thoại nào</div>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</body>
+</html>
