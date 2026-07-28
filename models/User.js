@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema({
   totalSpent: { type: Number, default: 0 },
   lastOrderDate: { type: Date, default: null },
   isVerified: { type: Boolean, default: false },
+
+  // Wallet balance in VND. Credited when a paid order is cancelled, debited when
+  // the customer pays with wallet money or an admin completes a bank payout.
+  walletBalance: { type: Number, default: 0, min: 0 },
   
   // Banking information for debt tracking
   bankInfo: {

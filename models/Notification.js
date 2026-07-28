@@ -31,6 +31,11 @@ const notificationSchema = new mongoose.Schema({
       // Payment activities
       "payment_received",
       "payment_failed",
+      // Wallet & refund activities
+      "wallet_refund",
+      "refund_request",
+      "refund_completed",
+      "refund_rejected",
       // User activities
       "new_user_registration",
       "shipper_application",

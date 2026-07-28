@@ -96,6 +96,16 @@ const orderSchema = new mongoose.Schema({
     actorName: { type: String, default: "Hệ thống" },
     note: { type: String, maxlength: 500, default: "" },
   }],
+  // Cancellation & refund tracking
+  cancelledAt: Date,
+  cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  cancelledByRole: { type: String, default: "" },
+  cancelReason: { type: String, maxlength: 500, default: "" },
+  refundedAmount: { type: Number, default: 0 },
+  refundedToWalletAt: { type: Date, default: null },
+  // Amount of this order that was settled using wallet balance
+  walletAmountUsed: { type: Number, default: 0 },
+
   rating: { type: Number, min: 1, max: 5 },
   ratingComment: String,
   ratedAt: Date,

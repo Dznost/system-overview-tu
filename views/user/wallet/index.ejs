@@ -1,0 +1,263 @@
+<%
+  var available = balance - pendingWithdrawTotal;
+  if (available < 0) available = 0;
+  var txLabels = {
+    order_refund: 'Hoàn tiền đơn hủy',
+    order_payment: 'Thanh toán đơn hàng',
+    withdraw_payout: 'Chuyển về ngân hàng',
+    admin_adjustment: 'Điều chỉnh từ quản trị'
+  };
+  var reqLabels = { pending: 'Đang chờ xử lý', completed: 'Đã chuyển khoản', rejected: 'Đã từ chối' };
+%>
+
+<section class="wallet-page">
+  <div class="container">
+    <header class="wallet-header">
+      <span class="eyebrow">Tài khoản của tôi</span>
+      <h1>Ví của tôi</h1>
+      <p>Tiền hoàn từ các đơn hàng đã hủy được lưu tại đây. Bạn có thể dùng để thanh toán đơn mới hoặc yêu cầu chuyển về ngân hàng.</p>
+    </header>
+
+    <% if (message) { %>
+      <div class="notice <%= message.type %>"><%= message.text %></div>
+    <% } %>
+
+    <div class="balance-grid">
+      <article class="balance-card primary">
+        <span>Số dư ví</span>
+        <strong><%= balance.toLocaleString('vi-VN') %>đ</strong>
+        <small>Tổng số tiền đang có trong ví</small>
+      </article>
+      <article class="balance-card">
+        <span>Khả dụng</span>
+        <strong><%= available.toLocaleString('vi-VN') %>đ</strong>
+        <small>Có thể dùng hoặc yêu cầu hoàn</small>
+      </article>
+      <article class="balance-card">
+        <span>Đang chờ hoàn</span>
+        <strong><%= pendingWithdrawTotal.toLocaleString('vi-VN') %>đ</strong>
+        <small>Yêu cầu chưa được xử lý</small>
+      </article>
+    </div>
+
+    <div class="wallet-actions">
+      <a href="/products" class="btn btn-primary">Dùng ví để mua hàng</a>
+      <% if (available > 0) { %>
+        <button type="button" class="btn btn-outline" id="openRefundForm">Yêu cầu hoàn tiền về ngân hàng</button>
+      <% } %>
+    </div>
+
+    <% if (available > 0) { %>
+      <div class="refund-form-wrap" id="refundFormWrap" hidden>
+        <form method="POST" action="/user/wallet/refund-request" class="refund-form">
+          <h2>Thông tin tài khoản nhận tiền</h2>
+          <p class="form-hint">Quản trị viên sẽ chuyển khoản theo thông tin dưới đây, sau đó số tiền tương ứng được trừ khỏi ví của bạn.</p>
+
+          <div class="form-grid">
+            <label>
+              Số tiền muốn hoàn (đ)
+              <input type="number" name="amount" min="1" max="<%= available %>" value="<%= available %>" required>
+              <small>Tối đa <%= available.toLocaleString('vi-VN') %>đ</small>
+            </label>
+            <label>
+              Ngân hàng
+              <select name="bankCode" required>
+                <option value="">-- Chọn ngân hàng --</option>
+                <% banks.forEach(function(bank) { %>
+                  <option value="<%= bank.code %>" <%= walletUser && walletUser.bankInfo && walletUser.bankInfo.bankName === bank.name ? 'selected' : '' %>><%= bank.name %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>
+              Số tài khoản
+              <input type="text" name="accountNumber" inputmode="numeric" pattern="\d{6,20}" required
+                value="<%= walletUser && walletUser.bankInfo ? (walletUser.bankInfo.accountNumber || '') : '' %>"
+                placeholder="Chỉ gồm chữ số">
+            </label>
+            <label>
+              Tên chủ tài khoản
+              <input type="text" name="accountHolder" required
+                value="<%= walletUser && walletUser.bankInfo ? (walletUser.bankInfo.accountHolder || walletUser.name || '') : (walletUser ? walletUser.name : '') %>"
+                placeholder="Viết không dấu như trên thẻ">
+            </label>
+            <label class="span-2">
+              Ghi chú (không bắt buộc)
+              <input type="text" name="note" maxlength="300" placeholder="Ví dụ: hoàn tiền đơn hàng đã hủy">
+            </label>
+          </div>
+
+          <div class="form-buttons">
+            <button type="submit" class="btn btn-primary">Gửi yêu cầu hoàn tiền</button>
+            <button type="button" class="btn btn-ghost" id="closeRefundForm">Đóng</button>
+          </div>
+        </form>
+      </div>
+    <% } %>
+
+    <% if (refundRequests && refundRequests.length) { %>
+      <section class="wallet-section">
+        <h2>Yêu cầu hoàn tiền</h2>
+        <div class="request-list">
+          <% refundRequests.forEach(function(request) { %>
+            <article class="request-card">
+              <div class="request-main">
+                <strong><%= request.amount.toLocaleString('vi-VN') %>đ</strong>
+                <p><%= request.bankName %> · STK <%= request.accountNumber %></p>
+                <small><%= request.accountHolder %> · <%= new Date(request.createdAt).toLocaleString('vi-VN') %></small>
+                <% if (request.status === 'rejected' && request.rejectReason) { %>
+                  <small class="reject-reason">Lý do: <%= request.rejectReason %></small>
+                <% } %>
+              </div>
+              <div class="request-side">
+                <span class="status status-<%= request.status %>"><%= reqLabels[request.status] || request.status %></span>
+                <% if (request.status === 'pending') { %>
+                  <form method="POST" action="/user/wallet/refund-request/<%= request._id %>/cancel"
+                    onsubmit="return confirm('Hủy yêu cầu hoàn tiền này?')">
+                    <button type="submit" class="btn btn-ghost btn-small">Hủy yêu cầu</button>
+                  </form>
+                <% } %>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+
+    <section class="wallet-section">
+      <h2>Lịch sử giao dịch</h2>
+      <% if (transactions && transactions.length) { %>
+        <div class="table-wrap">
+          <table class="tx-table">
+            <thead>
+              <tr>
+                <th>Thời gian</th>
+                <th>Nội dung</th>
+                <th>Đơn hàng</th>
+                <th class="right">Số tiền</th>
+                <th class="right">Số dư sau</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% transactions.forEach(function(tx) { %>
+                <tr>
+                  <td><%= new Date(tx.createdAt).toLocaleString('vi-VN') %></td>
+                  <td>
+                    <strong><%= txLabels[tx.type] || tx.type %></strong>
+                    <% if (tx.description) { %><small><%= tx.description %></small><% } %>
+                  </td>
+                  <td><%= tx.orderId && tx.orderId.orderCode ? tx.orderId.orderCode : '—' %></td>
+                  <td class="right <%= tx.direction === 'credit' ? 'credit' : 'debit' %>">
+                    <%= tx.direction === 'credit' ? '+' : '−' %><%= tx.amount.toLocaleString('vi-VN') %>đ
+                  </td>
+                  <td class="right"><%= tx.balanceAfter.toLocaleString('vi-VN') %>đ</td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <p>Ví của bạn chưa có giao dịch nào.</p>
+          <small>Khi bạn hủy một đơn hàng đã thanh toán, tiền sẽ được hoàn về đây.</small>
+        </div>
+      <% } %>
+    </section>
+  </div>
+</section>
+
+<style>
+  .wallet-page { padding: 48px 0 80px; background: #fdfcfa; }
+  .wallet-page .container { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+  .wallet-header { margin-bottom: 32px; }
+  .wallet-header .eyebrow { display: block; font-size: 0.72rem; letter-spacing: 1.6px; text-transform: uppercase; color: #8B6F47; font-weight: 700; margin-bottom: 8px; }
+  .wallet-header h1 { font-size: 2rem; margin: 0 0 8px; color: #1f1f1f; }
+  .wallet-header p { margin: 0; color: #5f5b55; max-width: 62ch; line-height: 1.6; }
+
+  .notice { padding: 14px 18px; border-radius: 8px; margin-bottom: 24px; font-size: 0.92rem; border: 1px solid transparent; }
+  .notice.success { background: #edf7ed; color: #1b5e20; border-color: #c8e6c9; }
+  .notice.error { background: #fdecea; color: #b71c1c; border-color: #f5c6cb; }
+
+  .balance-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (min-width: 720px) { .balance-grid { grid-template-columns: repeat(3, 1fr); } }
+  .balance-card { background: #fff; border: 1px solid #e6e0d8; border-radius: 12px; padding: 22px; }
+  .balance-card span { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.2px; color: #8a8378; font-weight: 700; margin-bottom: 10px; }
+  .balance-card strong { display: block; font-size: 1.7rem; color: #1f1f1f; margin-bottom: 6px; }
+  .balance-card small { color: #8a8378; font-size: 0.8rem; }
+  .balance-card.primary { background: #2a2a2a; border-color: #2a2a2a; }
+  .balance-card.primary span { color: #c9a86c; }
+  .balance-card.primary strong { color: #fff; }
+  .balance-card.primary small { color: #b0aaa2; }
+
+  .wallet-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 22px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: all .2s; }
+  .btn-primary { background: #8B6F47; color: #fff; border-color: #8B6F47; }
+  .btn-primary:hover { background: #755a37; }
+  .btn-outline { background: #fff; color: #8B6F47; border-color: #8B6F47; }
+  .btn-outline:hover { background: #f6f1e9; }
+  .btn-ghost { background: transparent; color: #6b6560; border-color: #d8d2c8; }
+  .btn-ghost:hover { background: #f3f0eb; }
+  .btn-small { padding: 8px 14px; font-size: 0.8rem; }
+
+  .refund-form-wrap { margin-bottom: 32px; }
+  .refund-form { background: #fff; border: 1px solid #e6e0d8; border-radius: 12px; padding: 26px; }
+  .refund-form h2 { font-size: 1.15rem; margin: 0 0 6px; color: #1f1f1f; }
+  .form-hint { margin: 0 0 20px; color: #6b6560; font-size: 0.88rem; line-height: 1.6; }
+  .form-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (min-width: 680px) { .form-grid { grid-template-columns: 1fr 1fr; } .form-grid .span-2 { grid-column: 1 / -1; } }
+  .form-grid label { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; font-weight: 600; color: #4a453f; }
+  .form-grid input, .form-grid select { padding: 11px 13px; border: 1px solid #d8d2c8; border-radius: 8px; font-size: 0.92rem; font-weight: 400; color: #1f1f1f; background: #fff; }
+  .form-grid input:focus, .form-grid select:focus { outline: none; border-color: #8B6F47; }
+  .form-grid small { font-weight: 400; color: #8a8378; font-size: 0.76rem; }
+  .form-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  .wallet-section { margin-top: 36px; }
+  .wallet-section h2 { font-size: 1.2rem; margin: 0 0 16px; color: #1f1f1f; }
+
+  .request-list { display: grid; gap: 12px; }
+  .request-card { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-start; background: #fff; border: 1px solid #e6e0d8; border-radius: 10px; padding: 18px; }
+  .request-main strong { display: block; font-size: 1.1rem; color: #1f1f1f; margin-bottom: 4px; }
+  .request-main p { margin: 0 0 4px; color: #4a453f; font-size: 0.9rem; }
+  .request-main small { display: block; color: #8a8378; font-size: 0.78rem; }
+  .request-main .reject-reason { color: #b71c1c; margin-top: 4px; }
+  .request-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+  .status { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; }
+  .status-pending { background: #fff4e0; color: #8a5a00; }
+  .status-completed { background: #e7f4e8; color: #1b5e20; }
+  .status-rejected { background: #fdecea; color: #b71c1c; }
+
+  .table-wrap { overflow-x: auto; background: #fff; border: 1px solid #e6e0d8; border-radius: 10px; }
+  .tx-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .tx-table th { text-align: left; padding: 14px 16px; background: #faf8f4; color: #6b6560; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #e6e0d8; white-space: nowrap; }
+  .tx-table td { padding: 14px 16px; border-bottom: 1px solid #f0ece5; color: #3a3630; vertical-align: top; }
+  .tx-table tbody tr:last-child td { border-bottom: none; }
+  .tx-table td strong { display: block; font-weight: 600; }
+  .tx-table td small { display: block; color: #8a8378; font-size: 0.78rem; margin-top: 2px; }
+  .tx-table .right { text-align: right; white-space: nowrap; }
+  .tx-table .credit { color: #1b5e20; font-weight: 700; }
+  .tx-table .debit { color: #b71c1c; font-weight: 700; }
+
+  .empty-state { background: #fff; border: 1px dashed #d8d2c8; border-radius: 10px; padding: 40px 24px; text-align: center; }
+  .empty-state p { margin: 0 0 6px; color: #4a453f; font-weight: 600; }
+  .empty-state small { color: #8a8378; }
+</style>
+
+<script>
+  (function () {
+    var openBtn = document.getElementById('openRefundForm');
+    var closeBtn = document.getElementById('closeRefundForm');
+    var wrap = document.getElementById('refundFormWrap');
+    if (!wrap) return;
+
+    if (openBtn) {
+      openBtn.addEventListener('click', function () {
+        wrap.hidden = false;
+        wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () { wrap.hidden = true; });
+    }
+  })();
+</script>

@@ -1,0 +1,312 @@
+<%
+  var reqLabels = { pending: 'Cho xu ly', completed: 'Da chuyen khoan', rejected: 'Da tu choi' };
+%>
+
+<section class="refund-admin">
+  <div class="container">
+    <header class="refund-header">
+      <div>
+        <span class="eyebrow">Tai chinh &amp; hoan tien</span>
+        <h1>Yeu cau hoan tien</h1>
+        <p>Quet ma QR de chuyen khoan, sau do tick vao o xac nhan de tru so tien tuong ung trong vi khach hang.</p>
+      </div>
+    </header>
+
+    <% if (success) { %><div class="notice success"><%= success %></div><% } %>
+    <% if (error) { %><div class="notice error"><%= error %></div><% } %>
+
+    <div class="stats-grid">
+      <article><span>Cho xu ly</span><strong><%= summary.pending %></strong></article>
+      <article><span>So tien cho chuyen</span><strong><%= summary.pendingTotal.toLocaleString('vi-VN') %>d</strong></article>
+      <article><span>Da hoan tat</span><strong><%= summary.completed %></strong></article>
+      <article><span>Tong da chuyen</span><strong><%= summary.completedTotal.toLocaleString('vi-VN') %>d</strong></article>
+    </div>
+
+    <form method="GET" action="/admin/refunds" class="filters">
+      <label>Trang thai
+        <select name="status" onchange="this.form.submit()">
+          <option value="all" <%= statusFilter === 'all' ? 'selected' : '' %>>Tat ca</option>
+          <option value="pending" <%= statusFilter === 'pending' ? 'selected' : '' %>>Cho xu ly</option>
+          <option value="completed" <%= statusFilter === 'completed' ? 'selected' : '' %>>Da chuyen khoan</option>
+          <option value="rejected" <%= statusFilter === 'rejected' ? 'selected' : '' %>>Da tu choi</option>
+        </select>
+      </label>
+      <button class="btn btn-primary" type="submit">Loc du lieu</button>
+    </form>
+
+    <% if (requests && requests.length) { %>
+      <div class="refund-list">
+        <% requests.forEach(function(entry) { var r = entry.doc; var rid = r._id.toString(); %>
+          <article class="refund-card">
+            <div class="refund-summary">
+              <div>
+                <span class="eyebrow">Ma yeu cau <%= rid.slice(-6).toUpperCase() %></span>
+                <h2><%= r.amount.toLocaleString('vi-VN') %>d</h2>
+                <p><strong><%= r.userId ? r.userId.name : 'Khach da xoa' %></strong>
+                  <% if (r.userId) { %> · <%= r.userId.email %><% } %></p>
+              </div>
+              <span class="status status-<%= r.status %>"><%= reqLabels[r.status] || r.status %></span>
+            </div>
+
+            <div class="details-grid">
+              <p><span>Ngan hang</span><strong><%= r.bankName %></strong></p>
+              <p><span>So tai khoan</span><strong><%= r.accountNumber %></strong></p>
+              <p><span>Chu tai khoan</span><strong><%= r.accountHolder %></strong></p>
+              <p><span>Vi hien tai</span><strong><%= r.userId && r.userId.walletBalance ? r.userId.walletBalance.toLocaleString('vi-VN') : 0 %>d</strong></p>
+              <p><span>Ngay yeu cau</span><strong><%= new Date(r.createdAt).toLocaleString('vi-VN') %></strong></p>
+              <% if (r.processedAt) { %>
+                <p><span>Ngay xu ly</span><strong><%= new Date(r.processedAt).toLocaleString('vi-VN') %></strong>
+                  <% if (r.processedBy) { %><small><%= r.processedBy.name %></small><% } %></p>
+              <% } %>
+            </div>
+
+            <% if (r.note) { %><p class="customer-note"><strong>Ghi chu khach:</strong> <%= r.note %></p><% } %>
+            <% if (r.status === 'rejected' && r.rejectReason) { %>
+              <p class="customer-note reject"><strong>Ly do tu choi:</strong> <%= r.rejectReason %></p>
+            <% } %>
+
+            <div class="card-actions">
+              <% if (r.status === 'pending') { %>
+                <button type="button" class="btn btn-primary view-qr-btn"
+                  data-qr="<%= entry.qrUrl %>"
+                  data-amount="<%= r.amount.toLocaleString('vi-VN') %>d"
+                  data-bank="<%= r.bankName %>"
+                  data-account="<%= r.accountNumber %>"
+                  data-holder="<%= r.accountHolder %>"
+                  data-customer="<%= r.userId ? r.userId.name : 'Khach da xoa' %>"
+                  data-action="/admin/refunds/<%= rid %>/complete">
+                  Xem ma QR &amp; xac nhan
+                </button>
+                <button type="button" class="btn btn-ghost toggle-reject" data-target="reject-<%= rid %>">Tu choi</button>
+              <% } %>
+              <% if (r.userId) { %>
+                <a href="/admin/refunds/wallet/<%= r.userId._id %>" class="btn btn-outline">Xem vi khach</a>
+              <% } %>
+            </div>
+
+            <% if (r.status === 'pending') { %>
+              <form method="POST" action="/admin/refunds/<%= rid %>/reject" class="reject-form" id="reject-<%= rid %>" hidden>
+                <label>Ly do tu choi
+                  <input type="text" name="rejectReason" maxlength="300" placeholder="Nhap ly do gui cho khach hang" required>
+                </label>
+                <button type="submit" class="btn btn-danger btn-small">Xac nhan tu choi</button>
+              </form>
+            <% } %>
+          </article>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <div class="empty-state"><p>Khong co yeu cau hoan tien nao.</p></div>
+    <% } %>
+
+    <% if (cancelledOrders && cancelledOrders.length) { %>
+      <section class="cancelled-section">
+        <h2>Don hang da huy va hoan vao vi</h2>
+        <div class="table-wrap">
+          <table class="cancel-table">
+            <thead>
+              <tr><th>Ma don</th><th>Khach hang</th><th class="right">Da hoan</th><th>Thoi gian huy</th><th>Ly do</th></tr>
+            </thead>
+            <tbody>
+              <% cancelledOrders.forEach(function(order) { %>
+                <tr>
+                  <td><a href="/admin/orders/<%= order._id %>"><%= order.orderCode || ('#' + order._id.toString().slice(-8).toUpperCase()) %></a></td>
+                  <td><%= order.userId ? order.userId.name : (order.fullName || 'Khach vang lai') %></td>
+                  <td class="right credit"><%= (order.refundedAmount || 0).toLocaleString('vi-VN') %>d</td>
+                  <td><%= order.cancelledAt ? new Date(order.cancelledAt).toLocaleString('vi-VN') : '—' %></td>
+                  <td><%= order.cancelReason || '—' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    <% } %>
+  </div>
+</section>
+
+<!-- QR confirmation modal -->
+<div class="qr-modal" id="qrModal" hidden>
+  <div class="qr-backdrop" data-close-modal></div>
+  <div class="qr-dialog" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+    <button type="button" class="qr-close" data-close-modal aria-label="Dong">&times;</button>
+    <h2 id="qrTitle">Quet ma de chuyen khoan</h2>
+
+    <div class="qr-image-wrap">
+      <img id="qrImage" src="/placeholder.svg" alt="Ma QR chuyen khoan hoan tien">
+    </div>
+
+    <dl class="qr-details">
+      <div><dt>Khach hang</dt><dd id="qrCustomer"></dd></div>
+      <div><dt>So tien</dt><dd id="qrAmount" class="highlight"></dd></div>
+      <div><dt>Ngan hang</dt><dd id="qrBank"></dd></div>
+      <div><dt>So tai khoan</dt><dd id="qrAccount"></dd></div>
+      <div><dt>Chu tai khoan</dt><dd id="qrHolder"></dd></div>
+    </dl>
+
+    <form method="POST" id="qrForm">
+      <label class="confirm-check">
+        <input type="checkbox" name="confirmTransferred" id="confirmTransferred" required>
+        <span>Toi xac nhan da chuyen tien thanh cong cho khach hang</span>
+      </label>
+      <p class="warn">Sau khi xac nhan, so tien tuong ung se bi tru khoi vi cua khach hang.</p>
+      <div class="qr-buttons">
+        <button type="submit" class="btn btn-primary" id="qrSubmit" disabled>Hoan tat &amp; tru vi</button>
+        <button type="button" class="btn btn-ghost" data-close-modal>Dong</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .refund-admin { padding: 40px 0 80px; }
+  .refund-admin .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  .refund-header { margin-bottom: 28px; }
+  .refund-header .eyebrow { display: block; font-size: 0.72rem; letter-spacing: 1.6px; text-transform: uppercase; color: #8B6F47; font-weight: 700; margin-bottom: 8px; }
+  .refund-header h1 { font-size: 1.9rem; margin: 0 0 8px; color: #1f1f1f; }
+  .refund-header p { margin: 0; color: #5f5b55; max-width: 70ch; line-height: 1.6; }
+
+  .notice { padding: 14px 18px; border-radius: 8px; margin-bottom: 22px; font-size: 0.92rem; border: 1px solid transparent; }
+  .notice.success { background: #edf7ed; color: #1b5e20; border-color: #c8e6c9; }
+  .notice.error { background: #fdecea; color: #b71c1c; border-color: #f5c6cb; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 24px; }
+  @media (min-width: 860px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+  .stats-grid article { background: #fff; border: 1px solid #e6e0d8; border-radius: 10px; padding: 18px; }
+  .stats-grid span { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.1px; color: #8a8378; font-weight: 700; margin-bottom: 8px; }
+  .stats-grid strong { font-size: 1.4rem; color: #1f1f1f; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; margin-bottom: 24px; }
+  .filters label { display: flex; flex-direction: column; gap: 6px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #6b6560; }
+  .filters select { padding: 10px 13px; border: 1px solid #d8d2c8; border-radius: 8px; font-size: 0.9rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: #1f1f1f; background: #fff; min-width: 190px; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 20px; border-radius: 8px; font-size: 0.87rem; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: all .2s; }
+  .btn-primary { background: #8B6F47; color: #fff; border-color: #8B6F47; }
+  .btn-primary:hover { background: #755a37; }
+  .btn-primary:disabled { background: #c9bda8; border-color: #c9bda8; cursor: not-allowed; }
+  .btn-outline { background: #fff; color: #8B6F47; border-color: #8B6F47; }
+  .btn-outline:hover { background: #f6f1e9; }
+  .btn-ghost { background: transparent; color: #6b6560; border-color: #d8d2c8; }
+  .btn-ghost:hover { background: #f3f0eb; }
+  .btn-danger { background: #c62828; color: #fff; border-color: #c62828; }
+  .btn-danger:hover { background: #a91f1f; }
+  .btn-small { padding: 8px 14px; font-size: 0.8rem; }
+
+  .refund-list { display: grid; gap: 16px; }
+  .refund-card { background: #fff; border: 1px solid #e6e0d8; border-radius: 12px; padding: 22px; }
+  .refund-summary { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 1px solid #f0ece5; }
+  .refund-summary .eyebrow { display: block; font-size: 0.68rem; letter-spacing: 1.3px; text-transform: uppercase; color: #8a8378; font-weight: 700; margin-bottom: 6px; }
+  .refund-summary h2 { font-size: 1.5rem; margin: 0 0 6px; color: #1f1f1f; }
+  .refund-summary p { margin: 0; color: #5f5b55; font-size: 0.9rem; }
+
+  .status { display: inline-block; padding: 6px 13px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; }
+  .status-pending { background: #fff4e0; color: #8a5a00; }
+  .status-completed { background: #e7f4e8; color: #1b5e20; }
+  .status-rejected { background: #fdecea; color: #b71c1c; }
+
+  .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 16px 0; }
+  @media (min-width: 860px) { .details-grid { grid-template-columns: repeat(3, 1fr); } }
+  .details-grid p { margin: 0; }
+  .details-grid span { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1px; color: #8a8378; font-weight: 700; margin-bottom: 4px; }
+  .details-grid strong { color: #1f1f1f; font-size: 0.94rem; }
+  .details-grid small { display: block; color: #8a8378; font-size: 0.78rem; }
+
+  .customer-note { margin: 0 0 14px; padding: 12px 14px; background: #faf8f4; border-left: 3px solid #8B6F47; border-radius: 4px; font-size: 0.88rem; color: #4a453f; line-height: 1.6; }
+  .customer-note.reject { border-left-color: #c62828; background: #fdf3f3; }
+
+  .card-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  .reject-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0ece5; }
+  .reject-form label { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 240px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #6b6560; }
+  .reject-form input { padding: 10px 13px; border: 1px solid #d8d2c8; border-radius: 8px; font-size: 0.9rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: #1f1f1f; }
+
+  .cancelled-section { margin-top: 44px; }
+  .cancelled-section h2 { font-size: 1.2rem; margin: 0 0 16px; color: #1f1f1f; }
+  .table-wrap { overflow-x: auto; background: #fff; border: 1px solid #e6e0d8; border-radius: 10px; }
+  .cancel-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .cancel-table th { text-align: left; padding: 13px 16px; background: #faf8f4; color: #6b6560; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #e6e0d8; white-space: nowrap; }
+  .cancel-table td { padding: 13px 16px; border-bottom: 1px solid #f0ece5; color: #3a3630; }
+  .cancel-table tbody tr:last-child td { border-bottom: none; }
+  .cancel-table a { color: #8B6F47; font-weight: 600; text-decoration: none; }
+  .cancel-table a:hover { text-decoration: underline; }
+  .cancel-table .right { text-align: right; white-space: nowrap; }
+  .cancel-table .credit { color: #1b5e20; font-weight: 700; }
+
+  .empty-state { background: #fff; border: 1px dashed #d8d2c8; border-radius: 10px; padding: 40px 24px; text-align: center; }
+  .empty-state p { margin: 0; color: #6b6560; font-weight: 600; }
+
+  /* Modal */
+  .qr-modal { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .qr-modal[hidden] { display: none; }
+  .qr-backdrop { position: absolute; inset: 0; background: rgba(20, 18, 16, 0.7); }
+  .qr-dialog { position: relative; background: #fff; border-radius: 14px; padding: 28px; width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+  .qr-close { position: absolute; top: 12px; right: 14px; background: none; border: none; font-size: 1.7rem; line-height: 1; color: #8a8378; cursor: pointer; padding: 4px 8px; }
+  .qr-close:hover { color: #1f1f1f; }
+  .qr-dialog h2 { font-size: 1.2rem; margin: 0 0 18px; color: #1f1f1f; padding-right: 30px; }
+
+  .qr-image-wrap { display: flex; justify-content: center; padding: 14px; background: #faf8f4; border: 1px solid #e6e0d8; border-radius: 10px; margin-bottom: 18px; }
+  .qr-image-wrap img { width: 260px; height: 260px; object-fit: contain; display: block; }
+
+  .qr-details { margin: 0 0 18px; display: grid; gap: 10px; }
+  .qr-details > div { display: flex; justify-content: space-between; gap: 14px; padding-bottom: 8px; border-bottom: 1px solid #f0ece5; }
+  .qr-details dt { font-size: 0.76rem; text-transform: uppercase; letter-spacing: .9px; color: #8a8378; font-weight: 700; }
+  .qr-details dd { margin: 0; font-size: 0.92rem; color: #1f1f1f; font-weight: 600; text-align: right; word-break: break-all; }
+  .qr-details dd.highlight { color: #8B6F47; font-size: 1.1rem; }
+
+  .confirm-check { display: flex; align-items: flex-start; gap: 10px; padding: 14px; background: #f6f1e9; border: 1px solid #e0d6c4; border-radius: 8px; cursor: pointer; margin-bottom: 12px; }
+  .confirm-check input { width: 20px; height: 20px; margin: 0; flex-shrink: 0; accent-color: #8B6F47; cursor: pointer; }
+  .confirm-check span { font-size: 0.9rem; color: #3a3630; font-weight: 600; line-height: 1.45; }
+  .warn { margin: 0 0 18px; font-size: 0.82rem; color: #b71c1c; line-height: 1.5; }
+  .qr-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+</style>
+
+<script>
+  (function () {
+    var modal = document.getElementById('qrModal');
+    var form = document.getElementById('qrForm');
+    var checkbox = document.getElementById('confirmTransferred');
+    var submitBtn = document.getElementById('qrSubmit');
+
+    function closeModal() {
+      modal.hidden = true;
+      checkbox.checked = false;
+      submitBtn.disabled = true;
+    }
+
+    document.querySelectorAll('.view-qr-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.getElementById('qrImage').src = btn.dataset.qr;
+        document.getElementById('qrCustomer').textContent = btn.dataset.customer;
+        document.getElementById('qrAmount').textContent = btn.dataset.amount;
+        document.getElementById('qrBank').textContent = btn.dataset.bank;
+        document.getElementById('qrAccount').textContent = btn.dataset.account;
+        document.getElementById('qrHolder').textContent = btn.dataset.holder;
+        form.action = btn.dataset.action;
+        checkbox.checked = false;
+        submitBtn.disabled = true;
+        modal.hidden = false;
+      });
+    });
+
+    // The payout button stays locked until the admin confirms the transfer.
+    checkbox.addEventListener('change', function () {
+      submitBtn.disabled = !checkbox.checked;
+    });
+
+    document.querySelectorAll('[data-close-modal]').forEach(function (el) {
+      el.addEventListener('click', closeModal);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !modal.hidden) closeModal();
+    });
+
+    document.querySelectorAll('.toggle-reject').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var target = document.getElementById(btn.dataset.target);
+        if (target) target.hidden = !target.hidden;
+      });
+    });
+  })();
+</script>
