@@ -4,6 +4,9 @@ const User = require("../models/User");
 // Get user's conversations
 exports.getUserMessages = async (req, res) => {
   try {
+    if (!req.session.user) {
+      return res.redirect("/auth/login?error=Vui+lòng+đăng+nhập");
+    }
     const userId = req.session.user._id;
     
     const conversations = await Message.find({ userId })
@@ -26,6 +29,9 @@ exports.getUserMessages = async (req, res) => {
 // Send message from user
 exports.sendUserMessage = async (req, res) => {
   try {
+    if (!req.session.user) {
+      return res.redirect("/auth/login?error=Vui+lòng+đăng+nhập");
+    }
     const userId = req.session.user._id;
     const { subject, content, conversationId } = req.body;
 
@@ -92,6 +98,9 @@ exports.sendUserMessage = async (req, res) => {
 // Get single conversation
 exports.getUserConversation = async (req, res) => {
   try {
+    if (!req.session.user) {
+      return res.redirect("/auth/login?error=Vui+lòng+đăng+nhập");
+    }
     const userId = req.session.user._id;
     const { conversationId } = req.params;
 
@@ -198,6 +207,9 @@ exports.getAdminConversationDetail = async (req, res) => {
 // Reply to conversation (admin)
 exports.replyToConversation = async (req, res) => {
   try {
+    if (!req.session.user) {
+      return res.redirect("/auth/login?error=Vui+lòng+đăng+nhập");
+    }
     const { conversationId } = req.params;
     const { content } = req.body;
     const adminId = req.session.user._id;

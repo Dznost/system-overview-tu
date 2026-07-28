@@ -11,8 +11,14 @@ const Contact = require("../models/Contact")
 
 // Middleware to check if user is admin
 const checkAdmin = (req, res, next) => {
-  if (!req.session.user || req.session.user.role !== "admin") {
-    return res.redirect("/")
+  if (!req.session || !req.session.user) {
+    return res.redirect("/auth/login?error=Vui+lòng+đăng+nhập")
+  }
+  if (req.session.user.role !== "admin") {
+    return res.status(403).render("error", { 
+      error: "Bạn không có quyền truy cập",
+      layout: false 
+    })
   }
   next()
 }

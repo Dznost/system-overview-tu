@@ -28,8 +28,8 @@ const {
 
 // Middleware to check if user is logged in
 const checkAuth = (req, res, next) => {
-  if (!req.session.user) {
-    return res.redirect("/login")
+  if (!req.session || !req.session.user) {
+    return res.redirect("/auth/login?error=Vui+lòng+đăng+nhập")
   }
   next()
 }

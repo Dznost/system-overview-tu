@@ -13,9 +13,9 @@ const Payment = require("../../models/Payment");
 
 // Middleware to check admin
 const checkAdmin = (req, res, next) => {
-  if (!req.session.user) {
+  if (!req.session || !req.session.user) {
     req.session.returnTo = req.originalUrl;
-    return res.redirect("/login");
+    return res.redirect("/auth/login?error=Vui+lòng+đăng+nhập");
   }
   if (req.session.user.role !== "admin") {
     return res.status(403).render("error", {
